@@ -1,3 +1,11 @@
+# Installation
+
+1. Import the core data using one of the sets in [csv-import](./csv-import/). There is a complete single file or folders with sets of multiple files. Those files are clearly labelled and must be executed in the given order. This step will be necessary only during the very first installation. Once succeeded, you can skip this for any subsequent updates and fixes.
+
+2. Execute the [SQL operations](./operations-compact.sql) that build up the actual working tables from the cora data set. Since the core data set is not changes by this operation, you can repeat this over and over, only rebuilding the working tables. This step should be repeated after any update or fix.
+
+3. Edit config.inc.php to configure the connection to your database. The original values only apply to the docker container spun up during development and thus have no other meaning than serving as an example.
+
 # Work log
 
 1. export as CSV with all text cells quoted
