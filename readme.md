@@ -4,7 +4,7 @@
 
 2. Execute the [SQL operations](./operations-compact.sql) that build up the actual working tables from the cora data set. Since the core data set is not changes by this operation, you can repeat this over and over, only rebuilding the working tables. This step should be repeated after any update or fix.
 
-3. Edit config.inc.php to configure the connection to your database. The original values only apply to the docker container spun up during development and thus have no other meaning than serving as an example.
+3. Edit [config.inc.php](./web/config.inc.php) to configure the connection to your database. The original values only apply to the docker container spun up during development and thus have no other meaning than serving as an example.
 
 # Work log
 
