@@ -30,28 +30,22 @@ function buildQuery(PDO $db): PDOStatement
     ];
     return $db->prepare(
         sprintf(
-            "(select id from (%s) a where name like concat('%% ', ?, ' %%'))"
-            . "union (select id from (select concat('%% ', ?, ' %%') pattern) a "
-            . "join mks_song b where concat(' ', replace(replace(replace(replace(replace(replace(replace(replace("
-            . "replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace("
-            . "replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace("
-            . "replace(replace(b.%s, '`', ' '), '=', ' '), '[', ' '), ']', ' '), ';', ' '), '\'', ' '), '\\', ' '), "
-            . "',', ' '), '.', ' '), '/', ' '), '~', ' '), '!', ' '), '@', ' '), '#', ' '), '\$', ' '), '%%', ' '), "
-            . "'^', ' '), '&', ' '), '*', ' '), '(', ' '), ')', ' '), '_', ' '), '+', ' '), '\\{', ' '), '}', ' '), "
-            . "':', ' '), '\"', ' '), '|', ' '), '<', ' '), '>', ' '), '?', ' '), '                 ', ' '), "
-            . "'         ', ' '), '     ', ' '), '   ', ' '), '  ', ' '), ' ') like a.pattern)",
+            "(select id from (%s) a where name like concat('%% ', ?, ' %%') collate utf8mb4_unicode_ci) "
+            . "union (select id from (select concat('%% ', ?, ' %%') collate utf8mb4_unicode_ci pattern) a "
+            . "join mks_song b where concat(' ', strip_punctuation(b.%s), ' ') collate utf8mb4_unicode_ci like a.pattern)",
             implode(
                 " union ",
                 array_map(
                     fn($list) => sprintf(
-                        'select a.song_id id, concat(\' \', b.name, \' \') name from mks_x_%s_song a join mks_%s b on b.id = a.%1$s_id',
+                        "select a.song_id id, concat(' ', strip_punctuation(b.name), ' ') collate utf8mb4_unicode_ci name "
+                        . 'from mks_x_%s_song a join mks_%s b on b.id = a.%1$s_id',
                         $list,
                         $xrefs[$list],
                     ),
                     array_keys($xrefs)
                 )
             ),
-            implode(", ' ') like a.pattern or concat(' ', b.", $songColumns)
+            implode("), ' ') collate utf8mb4_unicode_ci like a.pattern or concat(' ', strip_punctuation(b.", $songColumns)
         )
     );
 }
