@@ -17,7 +17,7 @@
                 */?>
                 <tr><th>ID</th><td><?php out($song->id)?></td></tr>
                 <tr><th>Titel</th><td><?php out($song->name)?></td></tr>
-                <tr><th>Komponiert von</th><td>
+                <tr><th>Komponist*innen</th><td>
                     <ul>
                         <?php foreach($song->composers as $composer):?>
                             <?php /*
@@ -30,14 +30,14 @@
                         <?php endforeach?>
                     </ul>
                 </td></tr>
-                <tr><th>Text von</th><td>
+                <tr><th>Texter*innen</th><td>
                     <ul>
                         <?php foreach($song->writers as $writer):?>
                             <li><?php out('%s%s', $writer->person->name, $writer->annotation)?></li>
                         <?php endforeach?>
                     </ul>
                 </td></tr>
-                <tr><th>Copyright</th><td><?php out($song->copyright_year)?></td></tr>
+                <tr><th>Copyright (Jahr)</th><td><?php out($song->copyright_year)?></td></tr>
                 <?php if ($song->copyright_remark):?><tr><th>Copyrightvermerk</th><td><?php out($song->copyright_remark)?></td></tr><?php endif?>
                 <tr><th>Entstehung</th><td><?php out($song->created_on)?></td></tr>
                 <?php /*
@@ -45,8 +45,8 @@
                     Sobald mehrere gepflegt werden, sollte hier foreach benutzt werden, statt auf Index 0 zuzugreifen.
                     Auch nachfolgend gibt es mehrere Unterobjekte, die bisher nur einzeln auftreten und daher per Index 0 angesprochen werden
                 */?>
-                <tr><th>Graphik von</th><td><?php out('%s%s', $song->coverArtists[0]->person->name, $song->coverArtists[0]->annotation)?></td></tr>
-                <tr><th>Interpretiert von</th><td>
+                <tr><th>Graphiker*innen</th><td><?php out('%s%s', $song->coverArtists[0]->person->name, $song->coverArtists[0]->annotation)?></td></tr>
+                <tr><th>Interpret*innen</th><td>
                     <ul>
                         <?php foreach($song->performers as $performer):?>
                             <li><?php out('%s%s', $performer->person->name, $performer->annotation)?></li>
