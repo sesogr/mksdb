@@ -28,7 +28,6 @@
                 <th>entstanden</th>
                 <th>interpretiert von (u. a.)</th>
                 <th>Herkunft</th>
-                <th>Index</th>
             </thead>
             <tbody>
                 <?php foreach ($results as $song):?>
@@ -38,7 +37,6 @@
                         <td><?php out($song->created_on)?></td>
                         <td><?php out($song->performer)?></td>
                         <td><?php out($song->origin)?></td>
-                        <td><?php out($song->index)?></td>
                     </tr>
                 <?php endforeach?>
             </tbody>

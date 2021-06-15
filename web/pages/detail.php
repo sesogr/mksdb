@@ -66,7 +66,6 @@
                 <tr><th>Kritik</th><td><?php out($song->review)?></td></tr>
                 <tr><th>Ergänzung</th><td><?php out($song->addition)?></td></tr>
                 <tr><th>Quelle</th><td><?php out('%s%s', $song->sources[0]->source->name, $song->sources[0]->annotation)?></td></tr>
-                <tr><th>Index</th><td><?php out($song->index_no)?></td></tr>
             </tbody>
         </table>
     </body>
