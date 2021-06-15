@@ -199,15 +199,14 @@ function gatherSearchResults(string $search, PDO $db): array
                     a.id,
                     a.name title,
                     concat(d.name, b.annotation) composer,
-                    a.created_on,
-                    concat(e.name, c.annotation) performer,
-                    a.origin,
-                    a.index_no `index`
+                    concat(e.name, c.annotation) writer,
+                    a.copyright_year,
+                    a.origin
                 from mks_song a
                 left join mks_x_composer_song b on a.id = b.song_id and b.position = 1
-                left join mks_x_performer_song c on a.id = c.song_id and c.position = 1
+                left join mks_x_writer_song c on a.id = c.song_id and c.position = 1
                 left join mks_person d on d.id = b.composer_id
-                left join mks_person e on e.id = c.performer_id
+                left join mks_person e on e.id = c.writer_id
                 where a.id in (%s)
                 SQL,
                 implode(',', array_keys(count($andMatches) > 0 ? $andMatches : $relevanceMap))

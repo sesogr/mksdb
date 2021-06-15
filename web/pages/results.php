@@ -24,9 +24,9 @@
         <table>
             <thead>
                 <th>Titel</th>
-                <th>komponiert von (u. a.)</th>
-                <th>entstanden</th>
-                <th>interpretiert von (u. a.)</th>
+                <th>Komponist*innen</th>
+                <th>Texter*innen</th>
+                <th>Copyright (Jahr)</th>
                 <th>Herkunft</th>
             </thead>
             <tbody>
@@ -34,8 +34,8 @@
                     <tr>
                         <td><a href="?id=<?php out($song->id)?>"><?php out($song->title)?></a></td>
                         <td><?php out($song->composer)?></td>
-                        <td><?php out($song->created_on)?></td>
-                        <td><?php out($song->performer)?></td>
+                        <td><?php out($song->writer)?></td>
+                        <td><?php out($song->copyright_year)?></td>
                         <td><?php out($song->origin)?></td>
                     </tr>
                 <?php endforeach?>

@@ -81,10 +81,9 @@ class SourceRef extends RecordRef {
  * @property-read int $id
  * @property-read string|null $title
  * @property-read string|null $composer
- * @property-read string|null $created_on
- * @property-read string|null $performer
+ * @property-read string|null $writer
+ * @property-read string|null $copyright_year
  * @property-read string|null $origin
- * @property-read int|null $index
  */
 class SearchResult {
 }
