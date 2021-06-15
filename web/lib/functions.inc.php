@@ -180,13 +180,19 @@ function displaySearchForm (): void {
 }
 
 function displaySearchResults (PDO $db, string $search): void {
+    $results = gatherSearchResults($search, $db);
+    include __DIR__ . '/../pages/results.php';
+}
+
+function gatherSearchResults(string $search, PDO $db): array
+{
     [$keywords, $ranges, $excludedKeywords, $excludedRanges] = parseSearch($search);
     $relevanceMap = buildSongMatches($db, $keywords);
     foreach (buildSongMatches($db, $excludedKeywords) as $songId => $exclusionMatches) {
         unset($relevanceMap[$songId]);
     }
     $andMatches = array_filter($relevanceMap, fn($r) => $r === count($keywords));
-    $results = count($relevanceMap) > 0
+    return count($relevanceMap) > 0
         ? $db->query(
             sprintf(<<<'SQL'
                 select
@@ -206,9 +212,8 @@ function displaySearchResults (PDO $db, string $search): void {
                 SQL,
                 implode(',', array_keys(count($andMatches) > 0 ? $andMatches : $relevanceMap))
             )
-        )->fetchAll(PDO::FETCH_OBJ)
+        )->fetchAll(PDO::FETCH_CLASS, SearchResult::class)
         : [];
-    include __DIR__ . '/../pages/results.php';
 }
 
 function handleRequest(array $get, array $post, array $server, PDO $db): void
