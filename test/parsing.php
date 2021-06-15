@@ -1,6 +1,6 @@
 <?php declare(strict_types=1);
-require_once __DIR__ . '/web/lib/testframeworkinatweet.inc.php';
-require_once __DIR__ . '/web/lib/functions.inc.php';
+require_once __DIR__ . '/../web/lib/testframeworkinatweet.inc.php';
+require_once __DIR__ . '/../web/lib/functions.inc.php';
 
 it('can split a search string into phrases and non-phrase particles', splitPhrases('abc -def -" ghi jkl" mno "pqr "') == ['abc -def mno', ['pqr'], ['ghi jkl']]);
 it('can split a non-phrase search string into positive and excluded keywords', splitKeywords('abc -def mno') == [['abc', 'mno'], ['def']]);
