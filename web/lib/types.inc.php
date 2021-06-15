@@ -3,7 +3,7 @@
 /**
  * @property-read string $name
  */
-interface NamedItem {
+class NamedItem {
 }
 
 /**
@@ -30,7 +30,7 @@ interface NamedItem {
  * @property-read SourceRef[] $sources
  * @property-read int $index_no
  */
-interface Song extends NamedItem
+class Song extends NamedItem
 {
 }
 
@@ -38,43 +38,43 @@ interface Song extends NamedItem
  * @property-read int|null $position
  * @property-read string|null $annotation
  */
-interface RecordRef {
+class RecordRef {
 }
 
 /**
  * @property-read NamedItem $person
  */
-interface PersonRef extends RecordRef {
+class PersonRef extends RecordRef {
 }
 
 /**
  * @property-read NamedItem $publisher
  */
-interface PublisherRef extends RecordRef {
+class PublisherRef extends RecordRef {
 }
 
 /**
  * @property-read NamedItem $city
  */
-interface CityRef extends RecordRef {
+class CityRef extends RecordRef {
 }
 
 /**
  * @property-read NamedItem $genre
  */
-interface GenreRef extends RecordRef {
+class GenreRef extends RecordRef {
 }
 
 /**
  * @property-read NamedItem $collection
  */
-interface CollectionRef extends RecordRef {
+class CollectionRef extends RecordRef {
 }
 
 /**
  * @property-read NamedItem $source
  */
-interface SourceRef extends RecordRef {
+class SourceRef extends RecordRef {
 }
 
 /**
@@ -86,5 +86,5 @@ interface SourceRef extends RecordRef {
  * @property-read string|null $origin
  * @property-read int|null $index
  */
-interface SearchResult {
+class SearchResult {
 }
