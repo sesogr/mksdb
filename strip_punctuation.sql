@@ -1,9 +1,9 @@
 delimiter @@
 drop function if exists strip_punctuation @@
-create function strip_punctuation(text text) returns text deterministic
+create function strip_punctuation(input text) returns text deterministic
 begin
     declare text1, text2, text3, text4, text5, text6, text7 text;
-    set text1 = replace(replace(replace(replace(replace(text, '`', ' '), '=', ' '), '[', ' '), ']', ' '), ';', ' ');
+    set text1 = replace(replace(replace(replace(replace(input, '`', ' '), '=', ' '), '[', ' '), ']', ' '), ';', ' ');
     set text2 = replace(replace(replace(replace(replace(text1, '\'', ' '), '\\', ' '), ',', ' '), '.', ' '), '/', ' ');
     set text3 = replace(replace(replace(replace(replace(text2, '~', ' '), '!', ' '), '@', ' '), '#', ' '), '$', ' ');
     set text4 = replace(replace(replace(replace(replace(text3, '%', ' '), '^', ' '), '&', ' '), '*', ' '), '(', ' ');
