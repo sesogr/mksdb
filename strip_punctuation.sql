@@ -1,8 +1,8 @@
-delimiter @
-drop function if exists strip_punctuation @
-create function strip_punctuation(text varchar) returns text deterministic
+delimiter @@
+drop function if exists strip_punctuation @@
+create function strip_punctuation(text text) returns text deterministic
 begin
-    declare text1, text2, text3, text4, text5, text6, text7 varchar;
+    declare text1, text2, text3, text4, text5, text6, text7 text;
     set text1 = replace(replace(replace(replace(replace(text, '`', ' '), '=', ' '), '[', ' '), ']', ' '), ';', ' ');
     set text2 = replace(replace(replace(replace(replace(text1, '\'', ' '), '\\', ' '), ',', ' '), '.', ' '), '/', ' ');
     set text3 = replace(replace(replace(replace(replace(text2, '~', ' '), '!', ' '), '@', ' '), '#', ' '), '$', ' ');
@@ -11,5 +11,5 @@ begin
     set text6 = replace(replace(replace(replace(replace(text5, ':', ' '), '"', ' '), '|', ' '), '<', ' '), '>', ' ');
     set text7 = replace(replace(replace(replace(text6, '?', ' '), '         ', ' '), '     ', ' '), '   ', ' ');
     return replace(replace(text7, '  ', ' '), ' ', ' ');
-end @
+end @@
 delimiter ;
