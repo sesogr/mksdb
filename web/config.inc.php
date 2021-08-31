@@ -1,13 +1,5 @@
 <?php declare(strict_types=1);
 require_once __DIR__ . '/lib/config-functions.inc.php';
-
-const DBHOST = '127.0.0.1';
-const DBPORT = 3306;
-const DBUSER = 'schlager';
-const DBPASSWORD = 'zorofzoftumev';
-const DBSCHEMA = 'schlager';
-const DBCHARSET = 'utf8mb4';
-
 return [
     'driver' => 'mysql',
     'address' => '127.0.0.1',

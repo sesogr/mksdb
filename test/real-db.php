@@ -3,11 +3,17 @@ require_once __DIR__ . '/../web/lib/testframeworkinatweet.inc.php';
 require_once __DIR__ . '/../web/lib/functions.inc.php';
 require_once __DIR__ . '/../web/lib/test-functions.inc.php';
 require_once __DIR__ . '/../web/lib/types.inc.php';
-require_once __DIR__ . '/../web/config.inc.php';
+$config = include __DIR__ . '/../web/config.inc.php';
 $db = new PDO(
-    sprintf("mysql:host=%s;port=%d;dbname=%s;charset=%s", DBHOST, DBPORT, DBSCHEMA, DBCHARSET),
-    DBUSER,
-    DBPASSWORD
+    sprintf(
+        "mysql:host=%s;port=%d;dbname=%s;charset=%s",
+        $config['address'],
+        $config['port'],
+        $config['database'],
+        'utf8mb4'
+    ),
+    $config['username'],
+    $config['password']
 );
 
 it('yields one single result for "Wolfgangsee Rößl" (KSD-T-6)', fn() => count(gatherSearchResults('Wolfgangsee Rößl', $db)) === 1);
