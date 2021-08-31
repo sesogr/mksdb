@@ -11997,15 +11997,7 @@ namespace Tqdev\PhpCrudApi {
     use Tqdev\PhpCrudApi\RequestFactory;
     use Tqdev\PhpCrudApi\ResponseUtils;
 
-    $config = new Config([
-        // 'driver' => 'mysql',
-        // 'address' => 'localhost',
-        // 'port' => '3306',
-        'username' => 'php-crud-api',
-        'password' => 'php-crud-api',
-        'database' => 'php-crud-api',
-        // 'debug' => false
-    ]);
+    $config = new Config(include __DIR__ . '/config.inc.php');
     $request = RequestFactory::fromGlobals();
     $api = new Api($config);
     $response = $api->handle($request);
