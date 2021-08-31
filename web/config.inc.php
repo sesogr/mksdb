@@ -9,5 +9,6 @@ return [
     'database' => 'schlager',
     'middlewares' => 'authorization,cors,customization',
     'authorization.tableHandler' => 'preventMutationOperations',
-    'customization.afterHandler' => 'interceptSearchRequest',
+    'customization.beforeHandler' => 'handleCustomRequest',
+    'customization.afterHandler' => 'handleCustomResponse',
 ];
