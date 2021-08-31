@@ -1,5 +1,5 @@
 <?php declare(strict_types=1);
-require_once __DIR__ . '/func.inc.php';
+require_once __DIR__ . '/lib/config-functions.inc.php';
 
 const DBHOST = '127.0.0.1';
 const DBPORT = 3306;
