@@ -1,4 +1,5 @@
 <?php
+require_once __DIR__ . '/func.inc.php';
 return [
     'driver' => 'mysql',
     'address' => '127.0.0.1',
@@ -6,4 +7,6 @@ return [
     'username' => 'schlager',
     'password' => 'zorofzoftumev',
     'database' => 'schlager',
+    'middlewares' => 'authorization,cors',
+    'authorization.tableHandler' => 'preventMutationOperations',
 ];
