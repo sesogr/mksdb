@@ -2,6 +2,8 @@
 use Nyholm\Psr7\Factory\Psr17Factory;
 use Psr\Http\Message\ResponseInterface;
 
+require_once __DIR__ . '/functions.inc.php';
+
 function interceptSearchRequest(string $operation, string $tableName, ResponseInterface $response, $environment)
 {
     if ($tableName === 'search') {
