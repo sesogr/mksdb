@@ -7,6 +7,7 @@ return [
     'username' => 'schlager',
     'password' => 'zorofzoftumev',
     'database' => 'schlager',
-    'middlewares' => 'authorization,cors',
+    'middlewares' => 'authorization,cors,customization',
     'authorization.tableHandler' => 'preventMutationOperations',
+    'customization.afterHandler' => 'interceptSearchRequest',
 ];
