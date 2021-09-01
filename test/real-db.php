@@ -1,9 +1,9 @@
 <?php declare(strict_types=1);
-require_once __DIR__ . '/../web/lib/testframeworkinatweet.inc.php';
-require_once __DIR__ . '/../web/lib/functions.inc.php';
-require_once __DIR__ . '/../web/lib/test-functions.inc.php';
-require_once __DIR__ . '/../web/lib/types.inc.php';
-$config = include __DIR__ . '/../web/config.inc.php';
+require_once __DIR__ . '/../api/lib/testframeworkinatweet.inc.php';
+require_once __DIR__ . '/../api/lib/functions.inc.php';
+require_once __DIR__ . '/../api/lib/test-functions.inc.php';
+require_once __DIR__ . '/../api/lib/types.inc.php';
+$config = include __DIR__ . '/../api/config.inc.php';
 $db = new PDO(
     sprintf(
         "mysql:host=%s;port=%d;dbname=%s;charset=%s",
