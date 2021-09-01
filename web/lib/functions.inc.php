@@ -110,7 +110,9 @@ function handleCustomRequest(string $operation, string $tableName, ServerRequest
     $uri = $request->getUri();
     if (rtrim($uri->getPath(), '/') === '/search') {
         $environment->search = $request->getQueryParams();
+        return $request;
     }
+    return $request->withUri($uri->withPath(preg_replace('<^/records/(\w+)>', '/records/mks_$1', $uri->getPath())));
 }
 
 function handleCustomResponse(string $operation, string $tableName, ResponseInterface $response, $environment)
