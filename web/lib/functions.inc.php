@@ -105,7 +105,7 @@ function gatherSearchResults(string $search, PDO $db): array
         : [];
 }
 
-function handleCustomRequest(string $operation, string $tableName, ServerRequestInterface $request, $environment)
+function handleCustomRequest(string $operation, string $tableName, ServerRequestInterface $request, $environment): ?ServerRequestInterface
 {
     $uri = $request->getUri();
     if (rtrim($uri->getPath(), '/') === '/search') {
@@ -115,7 +115,7 @@ function handleCustomRequest(string $operation, string $tableName, ServerRequest
     return $request->withUri($uri->withPath(preg_replace('<^/records/(\w+)>', '/records/mks_$1', $uri->getPath())));
 }
 
-function handleCustomResponse(string $operation, string $tableName, ResponseInterface $response, $environment)
+function handleCustomResponse(string $operation, string $tableName, ResponseInterface $response, $environment): ?ResponseInterface
 {
     if (isset($environment->search['q'])) {
         $factory = new Psr17Factory();
