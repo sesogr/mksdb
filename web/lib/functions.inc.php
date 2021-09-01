@@ -107,7 +107,8 @@ function gatherSearchResults(string $search, PDO $db): array
 
 function handleCustomRequest(string $operation, string $tableName, ServerRequestInterface $request, $environment)
 {
-    if ($operation === 'list' && $tableName === 'search') {
+    $uri = $request->getUri();
+    if (rtrim($uri->getPath(), '/') === '/search') {
         $environment->search = $request->getQueryParams();
     }
 }
