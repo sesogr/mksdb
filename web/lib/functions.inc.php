@@ -172,7 +172,10 @@ function parseSearch(string $search): array
 
 function preventMutationOperations(string $operation, string $tableName)
 {
-    return $operation === 'list' || $operation === 'read';
+    return $operation === 'list'     // /records/{TABLE}
+        || $operation === 'read'     // /records/{TABLE}/{ID}
+        || $operation === 'document' // /openapi
+    ;
 }
 
 /**
