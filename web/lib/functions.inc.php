@@ -4,6 +4,26 @@ use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
 
 require_once __DIR__ . '/types.inc.php';
+function addTablePrefixesToJoinParameter(string $query)
+{
+    return implode(
+        '&',
+        array_map(
+            function ($param) {
+                return substr($param, 0, 5) === 'join='
+                    ? preg_replace('<([=,])>', '\\1mks_', $param)
+                    : $param;
+            },
+            explode('&', $query)
+        )
+    );
+}
+
+function addTablePrefixToRecordsPath(string $path)
+{
+    return preg_replace('<^/records/(\w+)>', '/records/mks_$1', $path);
+}
+
 function buildQuery(PDO $db): PDOStatement
 {
     $songColumns = [
@@ -112,7 +132,11 @@ function handleCustomRequest(string $operation, string $tableName, ServerRequest
         $environment->search = $request->getQueryParams();
         return $request;
     }
-    return $request->withUri($uri->withPath(preg_replace('<^/records/(\w+)>', '/records/mks_$1', $uri->getPath())));
+    return $request->withUri(
+        $uri
+            ->withPath(addTablePrefixToRecordsPath($uri->getPath()))
+            ->withQuery(addTablePrefixesToJoinParameter($uri->getQuery()))
+    );
 }
 
 function handleCustomResponse(string $operation, string $tableName, ResponseInterface $response, $environment): ?ResponseInterface
