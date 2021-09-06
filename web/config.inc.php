@@ -1,5 +1,5 @@
 <?php declare(strict_types=1);
-const DBHOST = '127.0.0.1';
+const DBHOST = 'mksdb-mariadb';
 const DBPORT = 3306;
 const DBUSER = 'schlager';
 const DBPASSWORD = 'zorofzoftumev';
