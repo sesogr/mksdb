@@ -202,7 +202,7 @@ function indexTable(string $table, PDO $conn){
 }
 
 function addIndex(array $indexData, PDO $conn){
-    $stm = $conn->prepare('INSERT INTO mks_word_index VALUES (?, ?)');
+    $stm = $conn->prepare('INSERT IGNORE INTO mks_word_index VALUES (?, ?)');
     foreach($indexData as $word => $songs) {
         foreach ($songs as $song) {
             if($word === '') continue;// skip empty results;
@@ -253,13 +253,13 @@ function mapPutOrAdd(array &$map, string $key, string $value): void {
  * @param array $inp the input map
  */
 function mergeMap(array &$map, array $inp) {
-    //TODO this code produces duplicated key-value-pairs (how is this possible?)
     foreach($inp as $key => $arr){
         if(array_key_exists($key, $map)){
             $destArr = $map[$key];
             foreach($arr as $value)
                 if(!in_array($value, $destArr))
                     array_push($destArr, $value);
+            $map[$key] = $destArr;
         }else{
             $map[$key] = $arr;
         }
