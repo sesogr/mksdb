@@ -18,6 +18,14 @@
     3. remove single-quoted values
     4. add column ID with int unsigned not null primary key auto_increment
     5. change all other columns to TEXT
+4. create table for word-index
+   1. `create table mks_word_index(
+      word text         not null,
+      song int unsigned not null,
+      constraint mks_word_index_ibfk_1
+      foreign key (song) references mks_song (id)
+      on update cascade on delete cascade
+      );`
 
 # Issues encountered
 
