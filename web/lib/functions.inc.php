@@ -1,4 +1,28 @@
 <?php declare(strict_types=1);
+use Nyholm\Psr7\Factory\Psr17Factory;
+use Psr\Http\Message\ResponseInterface;
+use Psr\Http\Message\ServerRequestInterface;
+
+require_once __DIR__ . '/types.inc.php';
+function addTablePrefixesToJoinParameter(string $query)
+{
+    return implode(
+        '&',
+        array_map(
+            function ($param) {
+                return substr($param, 0, 5) === 'join='
+                    ? preg_replace('<([=,])>', '\\1mks_', $param)
+                    : $param;
+            },
+            explode('&', $query)
+        )
+    );
+}
+
+function addTablePrefixToRecordsPath(string $path)
+{
+    return preg_replace('<^/records/(\w+)>', '/records/mks_$1', $path);
+}
 
 function buildQuery(PDO $db): PDOStatement
 {
@@ -70,120 +94,6 @@ function buildSongMatches(PDO $db, array $keywords): array
     return $matches;
 }
 
-function displayNotFound(): void {
-    include __DIR__ . '/../pages/not-found.php';
-}
-
-function displayRecordDetails(PDO $db, int $id): void
-{
-    $getSong = $db->prepare('select * from mks_song where id = ?');
-    $listCollectionRecords = $db->prepare('select * from mks_x_collection_song a join mks_collection b on b.id = a.collection_id where song_id = ? order by a.position');
-    $listComposerRecords = $db->prepare('select * from mks_x_composer_song a join mks_person b on b.id = a.composer_id where song_id = ? order by a.position');
-    $listCoverArtistRecords = $db->prepare('select * from mks_x_cover_artist_song a join mks_person b on b.id = a.cover_artist_id where song_id = ? order by a.position');
-    $listGenreRecords = $db->prepare('select * from mks_x_genre_song a join mks_genre b on b.id = a.genre_id where song_id = ? order by a.position');
-    $listPerformerRecords = $db->prepare('select * from mks_x_performer_song a join mks_person b on b.id = a.performer_id where song_id = ? order by a.position');
-    $listPublicationPlaceRecords = $db->prepare('select * from mks_x_publication_place_song a join mks_city b on b.id = a.publication_place_id where song_id = ? order by a.position');
-    $listPublisherRecords = $db->prepare('select * from mks_x_publisher_song a join mks_publisher b on b.id = a.publisher_id where song_id = ? order by a.position');
-    $listSourceRecords = $db->prepare('select * from mks_x_source_song a join mks_source b on b.id = a.source_id where song_id = ? order by a.position');
-    $listWriterRecords = $db->prepare('select * from mks_x_writer_song a join mks_person b on b.id = a.writer_id where song_id = ? order by a.position');
-    $getSong->execute([$id]);
-    foreach ($getSong->fetchAll(PDO::FETCH_OBJ) as $song) {
-        $song->composers = [];
-        $song->writers = [];
-        $song->coverArtists = [];
-        $song->performers = [];
-        $song->publishers = [];
-        $song->publicationPlaces = [];
-        $song->genres = [];
-        $song->collections = [];
-        $song->sources = [];
-        $listCollectionRecords->execute([$id]);
-        $listComposerRecords->execute([$id]);
-        $listCoverArtistRecords->execute([$id]);
-        $listGenreRecords->execute([$id]);
-        $listPerformerRecords->execute([$id]);
-        $listPublicationPlaceRecords->execute([$id]);
-        $listPublisherRecords->execute([$id]);
-        $listSourceRecords->execute([$id]);
-        $listWriterRecords->execute([$id]);
-        foreach ($listCollectionRecords->fetchAll(PDO::FETCH_OBJ) as $collection) {
-            $song->collections[] = (object)[
-                'position' => $collection->position,
-                'annotation' => $collection->annotation,
-                'collection' => (object)['name' => $collection->name],
-            ];
-        }
-        foreach ($listComposerRecords->fetchAll(PDO::FETCH_OBJ) as $composer) {
-            $song->composers[] = (object)[
-                'position' => $composer->position,
-                'annotation' => $composer->annotation,
-                'person' => (object)['name' => $composer->name],
-            ];
-        }
-        foreach ($listCoverArtistRecords->fetchAll(PDO::FETCH_OBJ) as $coverArtist) {
-            $song->coverArtists[] = (object)[
-                'position' => $coverArtist->position,
-                'annotation' => $coverArtist->annotation,
-                'person' => (object)['name' => $coverArtist->name],
-            ];
-        }
-        foreach ($listGenreRecords->fetchAll(PDO::FETCH_OBJ) as $genre) {
-            $song->genres[] = (object)[
-                'position' => $genre->position,
-                'annotation' => $genre->annotation,
-                'genre' => (object)['name' => $genre->name],
-            ];
-        }
-        foreach ($listPerformerRecords->fetchAll(PDO::FETCH_OBJ) as $performer) {
-            $song->performers[] = (object)[
-                'position' => $performer->position,
-                'annotation' => $performer->annotation,
-                'person' => (object)['name' => $performer->name],
-            ];
-        }
-        foreach ($listPublicationPlaceRecords->fetchAll(PDO::FETCH_OBJ) as $publicationPlace) {
-            $song->publicationPlaces[] = (object)[
-                'position' => $publicationPlace->position,
-                'annotation' => $publicationPlace->annotation,
-                'city' => (object)['name' => $publicationPlace->name],
-            ];
-        }
-        foreach ($listPublisherRecords->fetchAll(PDO::FETCH_OBJ) as $publisher) {
-            $song->publishers[] = (object)[
-                'position' => $publisher->position,
-                'annotation' => $publisher->annotation,
-                'publisher' => (object)['name' => $publisher->name],
-            ];
-        }
-        foreach ($listSourceRecords->fetchAll(PDO::FETCH_OBJ) as $source) {
-            $song->sources[] = (object)[
-                'position' => $source->position,
-                'annotation' => $source->annotation,
-                'source' => (object)['name' => $source->name],
-            ];
-        }
-        foreach ($listWriterRecords->fetchAll(PDO::FETCH_OBJ) as $writer) {
-            $song->writers[] = (object)[
-                'position' => $writer->position,
-                'annotation' => $writer->annotation,
-                'person' => (object)['name' => $writer->name],
-            ];
-        }
-        include __DIR__ . '/../pages/detail.php';
-        return;
-    }
-    displayNotFound();
-}
-
-function displaySearchForm (): void {
-    include __DIR__ . '/../pages/search.php';
-}
-
-function displaySearchResults (PDO $db, string $search): void {
-    $results = gatherSearchResults($search, $db);
-    include __DIR__ . '/../pages/results.php';
-}
-
 function gatherSearchResults(string $search, PDO $db): array
 {
     [$keywords, $ranges, $excludedKeywords, $excludedRanges] = parseSearch($search);
@@ -215,24 +125,54 @@ function gatherSearchResults(string $search, PDO $db): array
         : [];
 }
 
-function handleRequest(array $get, array $post, array $server, PDO $db): void
+function handleCustomRequest(string $operation, string $tableName, ServerRequestInterface $request, $environment): ?ServerRequestInterface
 {
-    if ($get['id'] ?? null) {
-        if (is_numeric($get['id']) && $get['id'] > 0) {
-            displayRecordDetails($db, intval($get['id']));
-        } else {
-            displayNotFound();
-        }
-    } elseif ($post['ce1a388c'] ?? null) {
-        displaySearchResults($db, $post['ce1a388c']);
-    } else {
-        displaySearchForm();
+    $uri = $request->getUri();
+    if (rtrim($uri->getPath(), '/') === '/search') {
+        $environment->search = $request->getQueryParams();
+        return $request;
     }
+    return $request->withUri(
+        $uri
+            ->withPath(addTablePrefixToRecordsPath($uri->getPath()))
+            ->withQuery(addTablePrefixesToJoinParameter($uri->getQuery()))
+    );
 }
 
-function out($template, ...$args): void
+function handleCustomResponse(string $operation, string $tableName, ResponseInterface $response, $environment): ?ResponseInterface
 {
-    echo $template ? htmlspecialchars(count($args) > 0 ? sprintf($template, ...$args) : $template) : '';
+    if (isset($environment->search['q'])) {
+        $factory = new Psr17Factory();
+        $config = include __DIR__ . '/../config.inc.php';
+        $db = new PDO(
+            sprintf(
+                "mysql:host=%s;port=%d;dbname=%s;charset=%s",
+                $config['address'],
+                $config['port'],
+                $config['database'],
+                'utf8mb4'
+            ),
+            $config['username'],
+            $config['password']
+        );
+        $content = json_encode(
+            ['records' => array_map(
+                function ($x) {
+                    $x->id = intval($x->id);
+                    return $x;
+                },
+                gatherSearchResults($environment->search['q'], $db)
+            )],
+            JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE
+        );
+        $stream = $factory->createStream($content);
+        $stream->rewind();
+        return $factory->createResponse(200)
+            ->withHeader('Content-Type', 'application/json; charset=UTF-8')
+            ->withHeader('Content-Length', strlen($content))
+            ->withBody($stream);
+    }
+    return $response;
 }
 
 /**
@@ -240,7 +180,8 @@ function out($template, ...$args): void
  *
  * @return array [keywords, ranges, excludedKeywords, excludedRanges]
  */
-function parseSearch(string $search): array {
+function parseSearch(string $search): array
+{
     $wildcardSearch = str_replace('*', '%', str_replace('%', '%%', $search));
     [$nonPhrases, $phrases, $excludedPhrases] = splitPhrases($wildcardSearch);
     [$nonRanges, $ranges, $excludedRanges] = splitRanges($nonPhrases);
@@ -251,6 +192,14 @@ function parseSearch(string $search): array {
         array_merge($excludedKeywords, $excludedPhrases),
         $excludedRanges,
     ];
+}
+
+function preventMutationOperations(string $operation, string $tableName)
+{
+    return $operation === 'list'     // /records/{TABLE}
+        || $operation === 'read'     // /records/{TABLE}/{ID}
+        || $operation === 'document' // /openapi
+    ;
 }
 
 /**
