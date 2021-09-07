@@ -463,8 +463,8 @@ alter table mks_song
     modify column record_number varchar(47) default null,
     modify column origin varchar(449) default null,
     modify column dedication varchar(240) default null,
-    modify column review varchar(4581) default null,
-    modify column addition varchar(4501) default null,
+    modify column review varchar(4998) default null,
+    modify column addition varchar(5920) default null,
     modify column index_no varchar(5) default null;
 alter table mks_source modify column name varchar(501) default null;
 
