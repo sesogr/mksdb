@@ -4,7 +4,8 @@ use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
 
 require_once __DIR__ . '/types.inc.php';
-function addTablePrefixesToJoinParameter(string $query)
+
+function addTablePrefixesToJoinParameter(string $query): string
 {
     return implode(
         '&',
@@ -94,17 +95,125 @@ function buildSongMatches(PDO $db, array $keywords): array
     return $matches;
 }
 
-function gatherSearchResults(string $search, PDO $db): array
-{
-    [$keywords, $ranges, $excludedKeywords, $excludedRanges] = parseSearch($search);
-    $relevanceMap = buildSongMatches($db, $keywords);
-    foreach (buildSongMatches($db, $excludedKeywords) as $songId => $exclusionMatches) {
-        unset($relevanceMap[$songId]);
+/**
+ * @param array $words array of keywords
+ * @param array $excludedWords array of keywords, if match the song will be excluded
+ * @param PDO $dbConn db connection
+ * @return array array of all song-ids with one or more matching words;
+ *      the key is the song-id, the value is the match-count
+ */
+function collectWordMatches(array $words, array $excludedWords, PDO $dbConn): array {
+    $ret = [];
+    $qIncStr = sprintf("word IN (%s)", '\'' . implode('\', \'', $words) . '\'');
+    $qExStr = sprintf("word NOT IN (%s)", '\'' . implode('\', \'', $excludedWords) . '\'');
+    $queryStr = "SELECT song, COUNT(song) AS c FROM mks_word_index" . " WHERE " . $qIncStr . (count($excludedWords) > 0 ? " AND " .$qExStr : "") . " GROUP BY song ORDER BY c DESC;";
+    $query = $dbConn->query($queryStr);
+    foreach ($query->fetchAll(PDO::FETCH_NUM) as $row){
+        $ret[$row[0]] = (int)$row[1];
     }
-    $andMatches = array_filter($relevanceMap, fn($r) => $r === count($keywords));
-    return count($relevanceMap) > 0
-        ? $db->query(
-            sprintf(<<<'SQL'
+    return $ret;
+}
+
+/**
+ * returns all strings for the song (all columns of mks_song and all of its joins)
+ * @param int $songId
+ * @param PDO $dbConn
+ * @return array array of all strings related to the song
+ */
+function getSongFullInfo(int $songId, PDO $dbConn): array {
+    //TODO which columns are relevant for the search?; is my SQL syntax performant?
+    //TODO maybe this could be cached for the request-time
+    $stm = $dbConn->prepare("SELECT s.name, s.label, s.origin, s.dedication, s.review, s.addition,
+       s.copyright_year, s.copyright_remark, s.created_on, s.publisher_series, s.publisher_number, s.record_number,
+       coll.name, comp.name, cover.name, gen.name, perf.name, pubp.name, pub.name, src.name, wrt.name
+       FROM (mks_song s
+            LEFT JOIN (mks_x_collection_song coll_x INNER JOIN mks_collection coll on coll_x.collection_id = coll.id) ON coll_x.song_id = s.id
+            LEFT JOIN (mks_x_composer_song comp_x INNER JOIN mks_person comp on comp_x.composer_id = comp.id) ON comp_x.song_id = s.id
+            LEFT JOIN (mks_x_cover_artist_song cover_x INNER JOIN mks_person cover on cover_x.cover_artist_id = cover.id) ON cover_x.song_id = s.id
+            LEFT JOIN (mks_x_genre_song gen_x INNER JOIN mks_genre gen on gen_x.genre_id = gen.id) ON gen_x.song_id = s.id
+            LEFT JOIN (mks_x_performer_song perf_x INNER JOIN mks_person perf on perf_x.performer_id = perf.id) ON perf_x.song_id = s.id
+            LEFT JOIN (mks_x_publication_place_song pubp_x INNER JOIN mks_city pubp on pubp_x.publication_place_id = pubp.id) ON pubp_x.song_id = s.id
+            LEFT JOIN (mks_x_publisher_song pub_x INNER JOIN mks_publisher pub on pub_x.publisher_id = pub.id) ON pub_x.song_id = s.id
+            LEFT JOIN (mks_x_source_song src_x INNER JOIN mks_source src on src_x.source_id = src.id) ON src_x.song_id = s.id
+            LEFT JOIN (mks_x_writer_song wrt_x INNER JOIN mks_person wrt on wrt_x.writer_id = wrt.id) ON wrt_x.song_id = s.id
+       )
+       WHERE s.id = ?;");
+    $stm->execute([$songId]);
+
+    $row = $stm->fetch(PDO::FETCH_NUM);
+    $ret = [];
+    if($row === false) {
+        print "error in query ::getSongFullInfo: for item $songId ; " . implode(', ', $stm->errorInfo()) . "\n";
+        return $ret;
+    }
+    foreach($row as $col)
+        if($col !== null and $col != '')
+            $ret[] = $col;
+
+    return $ret;
+}
+
+/*
+function filterExclusions(array $songs, array $excludedKeywords, array $excludedPhrases, PDO $dbConn): array {
+    //$exclusionList = array_merge($excludedKeywords, $excludedPhrases);
+    //NOTE skipped checking for excluded keywords because this is done in collectWordMatches
+    $exclusionList = $excludedPhrases;
+
+    $filtered = [];
+    foreach($songs as $song){
+        $songInfo = getSongFullInfo($song, $dbConn);
+        foreach($exclusionList as $exclude)
+            foreach($songInfo as $songInfoPart)
+                if (strpos($songInfoPart, $exclude) !== false)
+                    continue 3;// skip song
+
+        $filtered[] = $song;
+    }
+    return $filtered;
+}
+*/
+
+function scoreSong(int $songId, array $keywords, array $phrases, array $excludedKeywords, array $excludedPhrases, int $keywordMatches, PDO $dbConn): int {
+    //TODO count keyword and phrases occurrences in full song info
+    // (keywords => 1, full match keywords => 10, phrases => 100; with excluded => -9999)
+    // (TODO adjust score weight)
+    $score = 0;
+
+    //NOTE skipped checking for excluded keywords because this is done in collectWordMatches
+
+    // if all keywords were matched, the result should be scored higher
+    //  (treat it like a lite version of a phrase)
+    if($keywordMatches === count($keywords))
+        $score += 10 * $keywordMatches;
+    else
+        $score += $keywordMatches;
+
+    // count matching phrases (scores the most)
+    $songInfo = getSongFullInfo($songId, $dbConn);
+    $i = 0;
+    foreach($songInfo as $infoPart){
+        if($i === 0){//if($infoPart === 'Reich mir noch einmal die Hände'){
+            print "it should match ($infoPart)\n";
+            $a = mb_stripos(mb_strtolower($infoPart, 'UTF-8'), mb_strtolower("NoCh EiNmAl DiE hÄnDe", 'UTF-8'), 0, 'UTF-8');
+            print "pos with lc: $a \n";
+            $a = mb_stripos($infoPart, "NoCh EiNmAl DiE hÄnDe", 0, 'UTF-8');
+            print "pos without lc: $a \n";
+        }
+        $i += 1;
+
+        foreach($excludedPhrases as $excludedPhrase)
+            if(mb_stripos($infoPart, $excludedPhrase, 0, 'UTF-8') !== false)
+                return -9999;
+        foreach($phrases as $phrase)
+            if(mb_stripos($infoPart, $phrase, 0, 'UTF-8') !== false)
+                $score += 100;
+    }
+
+    return $score;
+}
+
+function getSongInfoMulti(array $songs, PDO $dbConn): array {
+    $query = $dbConn->query(sprintf("
                 select
                     a.id,
                     a.name title,
@@ -117,12 +226,147 @@ function gatherSearchResults(string $search, PDO $db): array
                 left join mks_x_writer_song c on a.id = c.song_id and c.position = 1
                 left join mks_person d on d.id = b.composer_id
                 left join mks_person e on e.id = c.writer_id
-                where a.id in (%s)
-                SQL,
-                implode(',', array_keys(count($andMatches) > 0 ? $andMatches : $relevanceMap))
-            )
-        )->fetchAll(PDO::FETCH_CLASS, SearchResult::class)
-        : [];
+                where a.id in (%s)",
+        '\'' . implode('\', \'', $songs) . '\''));
+    return $query->fetchAll(PDO::FETCH_CLASS, SearchResult::class);
+}
+
+function trimResults(array $results, int $keywordCount, int $phraseCount, int $maxAmount): array {
+    arsort($results);
+
+    // compute minimum score: if searched with keywords => 1, if searched only with phrases => $phraseCount * phraseMultiplier
+    $minScore = $keywordCount > 0 ? 1 : $phraseCount * 100;
+
+    foreach($results as $id => $score)
+        if($score < $minScore)
+            unset($results[$id]);
+
+    if(count($results) > $maxAmount)
+        $results = array_slice($results, 0, $maxAmount, true);
+
+    return $results;
+}
+
+function gatherSearchResults(string $search, PDO $db): array
+{
+    [$keywords, $phrases, $ranges, $excludedKeywords, $excludedPhrases, $excludedRanges] = parseSearch($search);
+    // phrases have to be included into keywords for collectWordMatches
+    $keywordsWithPhrases = [...$keywords];
+    foreach($phrases as $phrase)
+        $keywordsWithPhrases = [...$keywordsWithPhrases, ...preg_split('[\s+]', $phrase)];
+
+    $matchedSongs = collectWordMatches($keywordsWithPhrases , $excludedKeywords, $db);
+    print "search words: " . implode(', ', $keywordsWithPhrases) . "\n";
+    print "possible results for query $search : " . implode(', ', array_keys($matchedSongs)) . "\n";
+    //$possibleSongs = filterExclusions($possibleSongs, $excludedKeywords, $excludedPhrases, $db);
+
+    $resultIds = [];
+    foreach($matchedSongs as $song => $matchCount){
+        $score = scoreSong($song, $keywords, $phrases, $excludedKeywords, $excludedPhrases, $matchCount, $db);
+        //print "score for item $song : $score \n";
+        if($score > 0)
+            $resultIds[$song] = $score;
+    }
+
+    $resultIds = trimResults($resultIds, count($keywords), count($phrases), 20);//TODO this is just an example threshold
+
+    print "results for query $search : " . implode(', ', array_keys($resultIds)) . "\n";
+    return getSongInfoMulti(array_keys($resultIds), $db);
+
+
+
+//    $relevanceMap = buildSongMatches($db, $keywords);
+//    foreach (buildSongMatches($db, $excludedKeywords) as $songId => $exclusionMatches) {
+//        unset($relevanceMap[$songId]);
+//    }
+//    $andMatches = array_filter($relevanceMap, fn($r) => $r === count($keywords));
+//    return count($relevanceMap) > 0
+//        ? $db->query(
+//            sprintf(<<<'SQL'
+//                select
+//                    a.id,
+//                    a.name title,
+//                    concat(d.name, b.annotation) composer,
+//                    concat(e.name, c.annotation) writer,
+//                    a.copyright_year,
+//                    a.origin
+//                from mks_song a
+//                left join mks_x_composer_song b on a.id = b.song_id and b.position = 1
+//                left join mks_x_writer_song c on a.id = c.song_id and c.position = 1
+//                left join mks_person d on d.id = b.composer_id
+//                left join mks_person e on e.id = c.writer_id
+//                where a.id in (%s)
+//                SQL,
+//                implode(',', array_keys(count($andMatches) > 0 ? $andMatches : $relevanceMap))
+//            )
+//        )->fetchAll(PDO::FETCH_CLASS, SearchResult::class)
+//        : [];
+}
+
+/**
+ * splits up the search-query into keywords, phrases, ranges and their excluded counterparts
+ * @param string $search
+ * @return array [keywords (without phrases), phrases, ranges, excludedKeywords (without phrases), excludedPhrases, excludedRanges]
+ */
+function parseSearch(string $search): array
+{
+    $wildcardSearch = str_replace('*', '%', str_replace('%', '%%', $search));
+    [$nonPhrases, $phrases, $excludedPhrases] = splitPhrases($wildcardSearch);
+    [$nonRanges, $ranges, $excludedRanges] = splitRanges($nonPhrases);
+    [$keywords, $excludedKeywords] = splitKeywords($nonRanges);
+    return [
+        $keywords,
+        $phrases,
+        $ranges,
+        $excludedKeywords,
+        $excludedPhrases,
+        $excludedRanges,
+    ];
+}
+
+/**
+ * @param string $search
+ * @return array [keywords, excluded keywords]
+ */
+function splitKeywords(string $search): array
+{
+    $keywords = preg_split('<\\s+>', $search);
+    return [
+        array_values(array_filter($keywords, fn($s) => $s && $s[0] !== '-')),
+        array_map(fn($s) => ltrim($s, '-'), array_values(array_filter($keywords, fn($s) => $s && $s[0] === '-'))),
+    ];
+}
+
+/**
+ * @param string $search
+ * @return array [non-phrase search, phrases, excluded phrases]
+ */
+function splitPhrases(string $search): array
+{
+    $particles = explode('"', $search);
+    $nonPhrases = array_map('trim', array_values(array_filter($particles, fn($index) => $index % 2 === 0, ARRAY_FILTER_USE_KEY)));
+    $phrases = array_map('trim', array_values(array_filter($particles, fn($index) => $index % 2 === 1, ARRAY_FILTER_USE_KEY)));
+    return [
+        implode(' ', array_filter(array_map(fn($s) => rtrim($s, '- '), $nonPhrases))),
+        array_values(array_filter($phrases, fn($key) => !$nonPhrases[$key] || $nonPhrases[$key][-1] !== '-', ARRAY_FILTER_USE_KEY)),
+        array_values(array_filter($phrases, fn($key) => $nonPhrases[$key] && $nonPhrases[$key][-1] === '-', ARRAY_FILTER_USE_KEY)),
+    ];
+}
+
+/**
+ * @param string $search
+ * @return array [non-range search, ranges, excluded ranges]
+ */
+function splitRanges(string $search): array
+{
+    // TODO not yet implemented
+    // $particles = explode('..', sprintf('# %s #', $search));
+    // array_map(fn($s) => trim(ltrim($s, '.')), $particles);
+    return [
+        $search,
+        [],
+        [],
+    ];
 }
 
 function handleCustomRequest(string $operation, string $tableName, ServerRequestInterface $request, $environment): ?ServerRequestInterface
@@ -175,77 +419,11 @@ function handleCustomResponse(string $operation, string $tableName, ResponseInte
     return $response;
 }
 
-/**
- * @param string $search
- *
- * @return array [keywords, ranges, excludedKeywords, excludedRanges]
- */
-function parseSearch(string $search): array
-{
-    $wildcardSearch = str_replace('*', '%', str_replace('%', '%%', $search));
-    [$nonPhrases, $phrases, $excludedPhrases] = splitPhrases($wildcardSearch);
-    [$nonRanges, $ranges, $excludedRanges] = splitRanges($nonPhrases);
-    [$keywords, $excludedKeywords] = splitKeywords($nonRanges);
-    return [
-        array_merge($keywords, $phrases),
-        $ranges,
-        array_merge($excludedKeywords, $excludedPhrases),
-        $excludedRanges,
-    ];
-}
-
-function preventMutationOperations(string $operation, string $tableName)
+//NOTE would the name 'is(Not)MutationOperation' fit better for this functions function
+function preventMutationOperations(string $operation, string $tableName): bool
 {
     return $operation === 'list'     // /records/{TABLE}
         || $operation === 'read'     // /records/{TABLE}/{ID}
         || $operation === 'document' // /openapi
-    ;
-}
-
-/**
- * @param $search
- *
- * @return array
- */
-function splitKeywords(string $search): array
-{
-    $keywords = preg_split('<\\s+>', $search);
-    return [
-        array_values(array_filter($keywords, fn($s) => $s && $s[0] !== '-')),
-        array_map(fn($s) => ltrim($s, '-'), array_values(array_filter($keywords, fn($s) => $s && $s[0] === '-'))),
-    ];
-}
-
-/**
- * @param string $search
- *
- * @return array [non-phrase search, phrases, excluded phrases]
- */
-function splitPhrases(string $search): array
-{
-    $particles = explode('"', $search);
-    $nonPhrases = array_map('trim', array_values(array_filter($particles, fn($index) => $index % 2 === 0, ARRAY_FILTER_USE_KEY)));
-    $phrases = array_map('trim', array_values(array_filter($particles, fn($index) => $index % 2 === 1, ARRAY_FILTER_USE_KEY)));
-    return [
-        implode(' ', array_filter(array_map(fn($s) => rtrim($s, '- '), $nonPhrases))),
-        array_values(array_filter($phrases, fn($key) => !$nonPhrases[$key] || $nonPhrases[$key][-1] !== '-', ARRAY_FILTER_USE_KEY)),
-        array_values(array_filter($phrases, fn($key) => $nonPhrases[$key] && $nonPhrases[$key][-1] === '-', ARRAY_FILTER_USE_KEY)),
-    ];
-}
-
-/**
- * @param string $search
- *
- * @return array [non-range search, ranges, excluded ranges]
- */
-function splitRanges(string $search): array
-{
-    // TODO not yet implemented
-    // $particles = explode('..', sprintf('# %s #', $search));
-    // array_map(fn($s) => trim(ltrim($s, '.')), $particles);
-    return [
-        $search,
-        [],
-        [],
-    ];
+        ;
 }
