@@ -7,9 +7,11 @@ function myLog(string $level, string $msg): void {
 }
 
 function run(): void {
-    myLog('info', 'creating index');
+    myLog('info', 're-creating index');
 
     $conn = createConnection();
+
+    clearIndex($conn);
 
     $tablesToIndex = listTables($conn);
 
