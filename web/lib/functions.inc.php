@@ -106,7 +106,7 @@ function collectWordMatches(array $words, array $excludedWords, PDO $dbConn): ar
     $ret = [];
     $qIncStr = sprintf("word IN (%s)", '\'' . implode('\', \'', $words) . '\'');
     $qExStr = sprintf("word NOT IN (%s)", '\'' . implode('\', \'', $excludedWords) . '\'');
-    $queryStr = "SELECT song, COUNT(song) AS c FROM mks_word_index" . " WHERE " . $qIncStr . (count($excludedWords) > 0 ? " AND " .$qExStr : "") . " GROUP BY song ORDER BY c DESC;";
+    $queryStr = "SELECT song, COUNT(song) AS c FROM mks_word_index" . " WHERE " . $qIncStr . (count($excludedWords) > 0 ? " AND " . $qExStr : "") . " GROUP BY song ORDER BY c DESC;";
     $query = $dbConn->query($queryStr);
     foreach ($query->fetchAll(PDO::FETCH_NUM) as $row){
         $ret[$row[0]] = (int)$row[1];
@@ -115,7 +115,7 @@ function collectWordMatches(array $words, array $excludedWords, PDO $dbConn): ar
 }
 
 /**
- * returns all strings for the song (all columns of mks_song and all of its joins)
+ * returns all strings (strip_punctuation applied) for the song (all columns of mks_song and all of its joins)
  * @param int $songId
  * @param PDO $dbConn
  * @return array array of all strings related to the song
@@ -123,9 +123,9 @@ function collectWordMatches(array $words, array $excludedWords, PDO $dbConn): ar
 function getSongFullInfo(int $songId, PDO $dbConn): array {
     //TODO which columns are relevant for the search?; is my SQL syntax performant?
     //TODO maybe this could be cached for the request-time
-    $stm = $dbConn->prepare("SELECT s.name, s.label, s.origin, s.dedication, s.review, s.addition,
-       s.copyright_year, s.copyright_remark, s.created_on, s.publisher_series, s.publisher_number, s.record_number,
-       coll.name, comp.name, cover.name, gen.name, perf.name, pubp.name, pub.name, src.name, wrt.name
+    $stm = $dbConn->prepare("SELECT strip_punctuation(s.name), strip_punctuation(s.label), strip_punctuation(s.origin), strip_punctuation(s.dedication), strip_punctuation(s.review), strip_punctuation(s.addition),
+       strip_punctuation(s.copyright_year), strip_punctuation(s.copyright_remark), strip_punctuation(s.created_on), strip_punctuation(s.publisher_series), strip_punctuation(s.publisher_number), strip_punctuation(s.record_number),
+       strip_punctuation(coll.name), strip_punctuation(comp.name), strip_punctuation(cover.name), strip_punctuation(gen.name), strip_punctuation(perf.name), strip_punctuation(pubp.name), strip_punctuation(pub.name), strip_punctuation(src.name), strip_punctuation(wrt.name)
        FROM (mks_song s
             LEFT JOIN (mks_x_collection_song coll_x INNER JOIN mks_collection coll on coll_x.collection_id = coll.id) ON coll_x.song_id = s.id
             LEFT JOIN (mks_x_composer_song comp_x INNER JOIN mks_person comp on comp_x.composer_id = comp.id) ON comp_x.song_id = s.id
@@ -143,7 +143,6 @@ function getSongFullInfo(int $songId, PDO $dbConn): array {
     $row = $stm->fetch(PDO::FETCH_NUM);
     $ret = [];
     if($row === false) {
-        print "error in query ::getSongFullInfo: for item $songId ; " . implode(', ', $stm->errorInfo()) . "\n";
         return $ret;
     }
     foreach($row as $col)
@@ -190,17 +189,7 @@ function scoreSong(int $songId, array $keywords, array $phrases, array $excluded
 
     // count matching phrases (scores the most)
     $songInfo = getSongFullInfo($songId, $dbConn);
-    $i = 0;
     foreach($songInfo as $infoPart){
-        if($i === 0){//if($infoPart === 'Reich mir noch einmal die Hände'){
-            print "it should match ($infoPart)\n";
-            $a = mb_stripos(mb_strtolower($infoPart, 'UTF-8'), mb_strtolower("NoCh EiNmAl DiE hÄnDe", 'UTF-8'), 0, 'UTF-8');
-            print "pos with lc: $a \n";
-            $a = mb_stripos($infoPart, "NoCh EiNmAl DiE hÄnDe", 0, 'UTF-8');
-            print "pos without lc: $a \n";
-        }
-        $i += 1;
-
         foreach($excludedPhrases as $excludedPhrase)
             if(mb_stripos($infoPart, $excludedPhrase, 0, 'UTF-8') !== false)
                 return -9999;
@@ -213,6 +202,8 @@ function scoreSong(int $songId, array $keywords, array $phrases, array $excluded
 }
 
 function getSongInfoMulti(array $songs, PDO $dbConn): array {
+    if(count($songs) === 0) return [];
+
     $query = $dbConn->query(sprintf("
                 select
                     a.id,
@@ -256,8 +247,8 @@ function gatherSearchResults(string $search, PDO $db): array
         $keywordsWithPhrases = [...$keywordsWithPhrases, ...preg_split('[\s+]', $phrase)];
 
     $matchedSongs = collectWordMatches($keywordsWithPhrases , $excludedKeywords, $db);
-    print "search words: " . implode(', ', $keywordsWithPhrases) . "\n";
-    print "possible results for query $search : " . implode(', ', array_keys($matchedSongs)) . "\n";
+    //print "search words: " . implode(', ', $keywordsWithPhrases) . "\n";
+    //print "possible results for query $search : " . implode(', ', array_keys($matchedSongs)) . "\n";
     //$possibleSongs = filterExclusions($possibleSongs, $excludedKeywords, $excludedPhrases, $db);
 
     $resultIds = [];
@@ -270,37 +261,30 @@ function gatherSearchResults(string $search, PDO $db): array
 
     $resultIds = trimResults($resultIds, count($keywords), count($phrases), 20);//TODO this is just an example threshold
 
-    print "results for query $search : " . implode(', ', array_keys($resultIds)) . "\n";
+    #print "results for query $search : " . implode(', ', array_keys($resultIds)) . "\n";
     return getSongInfoMulti(array_keys($resultIds), $db);
+}
 
+/*
+ * uses slow search-query (with 'LIKE') which supports shortcuts
+ */
+function gatherSearchResultsWithShortcuts(string $search, PDO $db): array {
+    [$keywords, $phrases, $ranges, $excludedKeywords, $excludedPhrases, $excludedRanges] = parseSearch($search);
+    // phrases have to be included into keywords for buildSongMatches
+    $allKeywords = [...$keywords];
+    foreach($phrases as $phrase)
+        $allKeywords = [...$allKeywords, ...preg_split('[\s+]', $phrase)];
+    $allExcludedKeywords = [...$excludedKeywords];
+    foreach($excludedPhrases as $phrase)
+        $allExcludedKeywords = [...$allExcludedKeywords, ...preg_split('[\s+]', $phrase)];
 
+    $relevanceMap = buildSongMatches($db, $allKeywords);
+    foreach (buildSongMatches($db, $allExcludedKeywords) as $songId => $exclusionMatches) {
+        unset($relevanceMap[$songId]);
+    }
+    $andMatches = array_filter($relevanceMap, fn($r) => $r === count($keywords));//TODO implement this (kind of) into my search (for 1. testcase)
 
-//    $relevanceMap = buildSongMatches($db, $keywords);
-//    foreach (buildSongMatches($db, $excludedKeywords) as $songId => $exclusionMatches) {
-//        unset($relevanceMap[$songId]);
-//    }
-//    $andMatches = array_filter($relevanceMap, fn($r) => $r === count($keywords));
-//    return count($relevanceMap) > 0
-//        ? $db->query(
-//            sprintf(<<<'SQL'
-//                select
-//                    a.id,
-//                    a.name title,
-//                    concat(d.name, b.annotation) composer,
-//                    concat(e.name, c.annotation) writer,
-//                    a.copyright_year,
-//                    a.origin
-//                from mks_song a
-//                left join mks_x_composer_song b on a.id = b.song_id and b.position = 1
-//                left join mks_x_writer_song c on a.id = c.song_id and c.position = 1
-//                left join mks_person d on d.id = b.composer_id
-//                left join mks_person e on e.id = c.writer_id
-//                where a.id in (%s)
-//                SQL,
-//                implode(',', array_keys(count($andMatches) > 0 ? $andMatches : $relevanceMap))
-//            )
-//        )->fetchAll(PDO::FETCH_CLASS, SearchResult::class)
-//        : [];
+    return getSongInfoMulti(array_keys(count($andMatches) > 0 ? $andMatches : $relevanceMap), $db);
 }
 
 /**
