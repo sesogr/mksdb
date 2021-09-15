@@ -97,17 +97,14 @@ function buildSongMatches(PDO $db, array $keywords): array
 
 /**
  * @param array $words array of keywords
- * @param array $excludedWords array of keywords, if match the song will be excluded
  * @param PDO $dbConn db connection
  * @return array array of all song-ids with one or more matching words;
  *      the key is the song-id, the value is the match-count
  */
-function collectWordMatches(array $words, array $excludedWords, PDO $dbConn): array {
+function collectWordMatches(array $words, PDO $dbConn): array {
     $ret = [];
-    $qIncStr = sprintf("word IN (%s)", '\'' . implode('\', \'', $words) . '\'');
-    $qExStr = sprintf("word NOT IN (%s)", '\'' . implode('\', \'', $excludedWords) . '\'');
-    $queryStr = "SELECT song, COUNT(song) AS c FROM mks_word_index" . " WHERE " . $qIncStr . (count($excludedWords) > 0 ? " AND " . $qExStr : "") . " GROUP BY song ORDER BY c DESC;";
-    $query = $dbConn->query($queryStr);
+    $query = $dbConn->query(sprintf('SELECT song, COUNT(song) AS c FROM mks_word_index WHERE word IN (%s) GROUP BY song ORDER BY c DESC;',
+        '\'' . implode('\', \'', $words) . '\''));
     foreach ($query->fetchAll(PDO::FETCH_NUM) as $row){
         $ret[$row[0]] = (int)$row[1];
     }
@@ -178,18 +175,12 @@ function scoreSong(int $songId, array $keywords, array $phrases, array $excluded
     // (TODO adjust score weight)
     $score = 0;
 
-    //NOTE skipped checking for excluded keywords because this is done in collectWordMatches
-
-    // if all keywords were matched, the result should be scored higher
-    //  (treat it like a lite version of a phrase)
-    if($keywordMatches === count($keywords))
-        $score += 10 * $keywordMatches;
-    else
-        $score += $keywordMatches;
-
     // count matching phrases (scores the most)
     $songInfo = getSongFullInfo($songId, $dbConn);
     foreach($songInfo as $infoPart){
+        foreach ($excludedKeywords as $excludedKeyword)
+            if(mb_stripos($infoPart, $excludedKeyword, 0, 'UTF-8') !== false)
+                return -9999;
         foreach($excludedPhrases as $excludedPhrase)
             if(mb_stripos($infoPart, $excludedPhrase, 0, 'UTF-8') !== false)
                 return -9999;
@@ -197,6 +188,13 @@ function scoreSong(int $songId, array $keywords, array $phrases, array $excluded
             if(mb_stripos($infoPart, $phrase, 0, 'UTF-8') !== false)
                 $score += 100;
     }
+
+    // if all keywords were matched, the result should be scored higher
+    //  (treat it like a lite version of a phrase)
+    if($keywordMatches === count($keywords))
+        $score += 10 * $keywordMatches;
+    else
+        $score += $keywordMatches;
 
     return $score;
 }
@@ -246,7 +244,7 @@ function gatherSearchResults(string $search, PDO $db): array
     foreach($phrases as $phrase)
         $keywordsWithPhrases = [...$keywordsWithPhrases, ...preg_split('[\s+]', $phrase)];
 
-    $matchedSongs = collectWordMatches($keywordsWithPhrases , $excludedKeywords, $db);
+    $matchedSongs = collectWordMatches($keywordsWithPhrases, $db);
     //print "search words: " . implode(', ', $keywordsWithPhrases) . "\n";
     //print "possible results for query $search : " . implode(', ', array_keys($matchedSongs)) . "\n";
     //$possibleSongs = filterExclusions($possibleSongs, $excludedKeywords, $excludedPhrases, $db);
