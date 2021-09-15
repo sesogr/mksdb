@@ -209,7 +209,12 @@ function indexTable(string $table, PDO $conn){
     }
 }
 
-function addIndex(array $indexData, PDO $conn){
+/**
+ * writes the index-data (created by indexTable) into the db
+ * @param array $indexData array of the format [word => [song-id, ...], ...]
+ * @param PDO $conn
+ */
+function writeIndex(array $indexData, PDO $conn){
     $stm = $conn->prepare('INSERT IGNORE INTO mks_word_index VALUES (?, ?)');
     foreach($indexData as $word => $songs) {
         foreach ($songs as $song) {

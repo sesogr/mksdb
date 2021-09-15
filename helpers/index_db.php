@@ -25,7 +25,7 @@ function run(): void {
     }
 
     myLog('info', 'writing index');
-    addIndex($indexData, $conn);
+    writeIndex($indexData, $conn);
 
     myLog('info', 'finished');
 }
