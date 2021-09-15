@@ -36,6 +36,7 @@ services:
       - inet
     ports:
       - "8081:80"
+      - "8050:8050"
     volumes:
       - "../:/var/www/proj"
       - "../web:/var/www/html"

@@ -373,7 +373,17 @@ function handleCustomRequest(string $operation, string $tableName, ServerRequest
 function handleCustomResponse(string $operation, string $tableName, ResponseInterface $response, $environment): ?ResponseInterface
 {
     if (isset($environment->search['q'])) {
+        $engine = 'v2';
+        if(isset($environment->search['engine'])){
+            switch ($environment->search['engine']){
+                case 'v1':
+                    $engine = 'v1';
+                    break;
+            }
+        }
+
         $factory = new Psr17Factory();
+
         $config = include __DIR__ . '/../config.inc.php';
         $db = new PDO(
             sprintf(
@@ -386,16 +396,28 @@ function handleCustomResponse(string $operation, string $tableName, ResponseInte
             $config['username'],
             $config['password']
         );
+
+        $searchResults = null;
+        switch ($engine){
+            case 'v1':
+                $searchResults = gatherSearchResultsWithWildcards($environment->search['q'], $db);
+                break;
+            case 'v2':
+                $searchResults = gatherSearchResults($environment->search['q'], $db);
+                break;
+        }
+
         $content = json_encode(
             ['records' => array_map(
                 function ($x) {
                     $x->id = intval($x->id);
                     return $x;
                 },
-                gatherSearchResults($environment->search['q'], $db)
+                $searchResults
             )],
             JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE
         );
+
         $stream = $factory->createStream($content);
         $stream->rewind();
         return $factory->createResponse(200)
