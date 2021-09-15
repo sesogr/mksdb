@@ -7,6 +7,10 @@ const PASSWORD = 'zorofzoftumev';
 const DATABASE = 'schlager';
 const INDEX_NAME = "mks_word_index";
 
+function clearIndex(PDO $dbConn){
+    $dbConn->exec('TRUNCATE TABLE ' . INDEX_NAME . ';');
+}
+
 function listTables(PDO $dbConn): array {
     $JOIN_TABLE_PREFIX = 'mks_x_';
     $JOIN_TABLE_PREFIX_LEN = strlen($JOIN_TABLE_PREFIX);
@@ -26,8 +30,6 @@ function listTables(PDO $dbConn): array {
 
         array_push($tables, $table);
     }
-
-    myLog('debug', sprintf("tables to index: %s", implode(', ', $tables)));
 
     return $tables;
 }
@@ -166,10 +168,11 @@ function indexTable(string $table, PDO $conn){
         },
         'mks_song' => function() use ($conn) {
             $ret = [];
-            //TODO i did not index all columns (like copyright_year)
             $stm = $conn->query("SELECT id,
                     strip_punctuation(name), strip_punctuation(label), strip_punctuation(origin),
-                    strip_punctuation(dedication), strip_punctuation(review), strip_punctuation(addition)
+                    strip_punctuation(dedication), strip_punctuation(review), strip_punctuation(addition),
+                    strip_punctuation(copyright_year), strip_punctuation(copyright_remark), strip_punctuation(created_on),
+                    strip_punctuation(publisher_series), strip_punctuation(publisher_number), strip_punctuation(record_number)
                     FROM mks_song");
 
             foreach($stm->fetchAll(PDO::FETCH_NUM) as $row){
@@ -239,8 +242,8 @@ function mapPutOrAdd(array &$map, string $key, string $value): void {
             array_push($array, $value);
     }else{
         $array = [$value];
-        $map[$key] = $array;
     }
+    $map[$key] = $array;
 }
 
 /**
