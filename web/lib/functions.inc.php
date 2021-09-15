@@ -197,8 +197,8 @@ function getSongInfoMulti(array $songs, PDO $dbConn): array {
                 select
                     a.id,
                     a.name title,
-                    concat(d.name, b.annotation) composer,
-                    concat(e.name, c.annotation) writer,
+                    concat_ws('', d.name, b.annotation) composer,
+                    concat_ws('', e.name, c.annotation) writer,
                     a.copyright_year,
                     a.origin
                 from mks_song a
