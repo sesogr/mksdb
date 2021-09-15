@@ -245,21 +245,16 @@ function gatherSearchResults(string $search, PDO $db): array
         $keywordsWithPhrases = [...$keywordsWithPhrases, ...preg_split('[\s+]', $phrase)];
 
     $matchedSongs = collectWordMatches($keywordsWithPhrases, $db);
-    //print "search words: " . implode(', ', $keywordsWithPhrases) . "\n";
-    //print "possible results for query $search : " . implode(', ', array_keys($matchedSongs)) . "\n";
-    //$possibleSongs = filterExclusions($possibleSongs, $excludedKeywords, $excludedPhrases, $db);
 
     $resultIds = [];
     foreach($matchedSongs as $song => $matchCount){
         $score = scoreSong($song, $keywords, $phrases, $excludedKeywords, $excludedPhrases, $matchCount, $db);
-        //print "score for item $song : $score \n";
         if($score > 0)
             $resultIds[$song] = $score;
     }
 
     $resultIds = trimResults($resultIds, count($keywords), count($phrases), 20);//TODO this is just an example threshold
 
-    #print "results for query $search : " . implode(', ', array_keys($resultIds)) . "\n";
     return getSongInfoMulti(array_keys($resultIds), $db);
 }
 
