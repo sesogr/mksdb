@@ -276,10 +276,10 @@ function gatherSearchResultsWithWildcards(string $search, PDO $db): array {
     // phrases have to be included into keywords for buildSongMatches
     $allKeywords = [...$keywords];
     foreach($phrases as $phrase)
-        $allKeywords = [...$allKeywords, ...preg_split('[\s+]', $phrase)];
+        $allKeywords = [...$allKeywords, $phrase];
     $allExcludedKeywords = [...$excludedKeywords];
     foreach($excludedPhrases as $phrase)
-        $allExcludedKeywords = [...$allExcludedKeywords, ...preg_split('[\s+]', $phrase)];
+        $allExcludedKeywords = [...$allExcludedKeywords, $phrase];
 
     $relevanceMap = buildSongMatches($db, $allKeywords);
     foreach (buildSongMatches($db, $allExcludedKeywords) as $songId => $exclusionMatches) {
