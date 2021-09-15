@@ -16,7 +16,7 @@ function hasAtLeastSoManyResultsWhichAllMatchCallbackV2(PDO $db, string $search,
 function hasAtLeastSoManyResultsWhichAllMatchCallbackV1(PDO $db, string $search, int $minResults, callable $matcher): bool
 {
     $stats = array_reduce(
-        gatherSearchResultsWithShortcuts($search, $db),
+        gatherSearchResultsWithWildcards($search, $db),
         fn($accu, SearchResult $item) => [
             'total' => 1 + $accu['total'],
             'match' => ($matcher($item) ? 1 : 0) + $accu['match'],

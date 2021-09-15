@@ -28,7 +28,7 @@ it('[V2] can search for origin \'Himmelstür\' without "Odeon 0-4756" (KSD-T-1)'
     fn(SearchResult $r) => mb_stripos($r->origin, 'HIMMELSTÜR') !== false && $r->title !== 'Kinostar'));
 
 // for search v1
-it('[V1] yields one single result for \'Wolfgangsee Rößl\' (KSD-T-6)', fn() => count(gatherSearchResultsWithShortcuts('Wolfgangsee Rößl', $db)) === 1);
+it('[V1] yields one single result for \'Wolfgangsee Rößl\' (KSD-T-6)', fn() => count(gatherSearchResultsWithWildcards('Wolfgangsee Rößl', $db)) === 1);
 it('[V1] can search for origin \'Himmelstür\' (KSD-T-1)', fn() => hasAtLeastSoManyResultsWhichAllMatchCallbackV1($db, 'Himmelstür', 1, fn(SearchResult $r) => mb_stripos($r->origin, 'HIMMELSTÜR') !== false));
 it('[V1] can search for origin \'Viktoria\' (KSD-T-1)', fn() => hasAtLeastSoManyResultsWhichAllMatchCallbackV1($db, 'Viktoria', 1, fn(SearchResult $r) => mb_stripos($r->origin, 'VIKTORIA') !== false));
 it('[V1] ignores letter-case for keywords like \'vIkToRiA\' (KSD-T-3)', fn() => hasAtLeastSoManyResultsWhichAllMatchCallbackV1($db, 'vIkToRiA', 1, fn(SearchResult $r) => mb_strpos($r->origin, 'Viktoria') !== false));

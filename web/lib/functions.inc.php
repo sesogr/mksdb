@@ -197,8 +197,8 @@ function getSongInfoMulti(array $songs, PDO $dbConn): array {
                 select
                     a.id,
                     a.name title,
-                    concat(d.name, b.annotation) composer,
-                    concat(e.name, c.annotation) writer,
+                    concat_ws('', d.name, b.annotation) composer,
+                    concat_ws('', e.name, c.annotation) writer,
                     a.copyright_year,
                     a.origin
                 from mks_song a
@@ -211,7 +211,7 @@ function getSongInfoMulti(array $songs, PDO $dbConn): array {
     return $query->fetchAll(PDO::FETCH_CLASS, SearchResult::class);
 }
 
-function trimResults(array $results, int $keywordCount, int $phraseCount, bool $preferFullMatches = true, int $maxAmount = 20): array {//TODO default value for maxAmount is just an example threshold
+function trimResults(array $results, int $keywordCount, int $phraseCount, bool $preferFullMatches = true): array {
     arsort($results);
 
     /* compute minimum score:
@@ -240,9 +240,6 @@ function trimResults(array $results, int $keywordCount, int $phraseCount, bool $
         if($score->totalScore() < $minScore)
             unset($results[$id]);
 
-    if(count($results) > $maxAmount)
-        $results = array_slice($results, 0, $maxAmount, true);
-
     return $results;
 }
 
@@ -269,23 +266,23 @@ function gatherSearchResults(string $search, PDO $db): array
 }
 
 /*
- * uses slow search-query (with 'LIKE') which supports shortcuts
+ * uses slow search-query (with 'LIKE') which supports wildcards
  */
-function gatherSearchResultsWithShortcuts(string $search, PDO $db): array {
+function gatherSearchResultsWithWildcards(string $search, PDO $db): array {
     [$keywords, $phrases, $ranges, $excludedKeywords, $excludedPhrases, $excludedRanges] = parseSearch($search);
     // phrases have to be included into keywords for buildSongMatches
     $allKeywords = [...$keywords];
     foreach($phrases as $phrase)
-        $allKeywords = [...$allKeywords, ...preg_split('[\s+]', $phrase)];
+        $allKeywords = [...$allKeywords, $phrase];
     $allExcludedKeywords = [...$excludedKeywords];
     foreach($excludedPhrases as $phrase)
-        $allExcludedKeywords = [...$allExcludedKeywords, ...preg_split('[\s+]', $phrase)];
+        $allExcludedKeywords = [...$allExcludedKeywords, $phrase];
 
     $relevanceMap = buildSongMatches($db, $allKeywords);
     foreach (buildSongMatches($db, $allExcludedKeywords) as $songId => $exclusionMatches) {
         unset($relevanceMap[$songId]);
     }
-    $andMatches = array_filter($relevanceMap, fn($r) => $r === count($keywords));//TODO implement this (kind of) into my search (for 1. testcase)
+    $andMatches = array_filter($relevanceMap, fn($r) => $r === count($keywords));
 
     return getSongInfoMulti(array_keys(count($andMatches) > 0 ? $andMatches : $relevanceMap), $db);
 }
@@ -373,7 +370,17 @@ function handleCustomRequest(string $operation, string $tableName, ServerRequest
 function handleCustomResponse(string $operation, string $tableName, ResponseInterface $response, $environment): ?ResponseInterface
 {
     if (isset($environment->search['q'])) {
+        $engine = 'v2';
+        if(isset($environment->search['engine'])){
+            switch ($environment->search['engine']){
+                case 'v1':
+                    $engine = 'v1';
+                    break;
+            }
+        }
+
         $factory = new Psr17Factory();
+
         $config = include __DIR__ . '/../config.inc.php';
         $db = new PDO(
             sprintf(
@@ -386,16 +393,28 @@ function handleCustomResponse(string $operation, string $tableName, ResponseInte
             $config['username'],
             $config['password']
         );
+
+        $searchResults = null;
+        switch ($engine){
+            case 'v1':
+                $searchResults = gatherSearchResultsWithWildcards($environment->search['q'], $db);
+                break;
+            case 'v2':
+                $searchResults = gatherSearchResults($environment->search['q'], $db);
+                break;
+        }
+
         $content = json_encode(
             ['records' => array_map(
                 function ($x) {
                     $x->id = intval($x->id);
                     return $x;
                 },
-                gatherSearchResults($environment->search['q'], $db)
+                $searchResults
             )],
             JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE
         );
+
         $stream = $factory->createStream($content);
         $stream->rewind();
         return $factory->createResponse(200)
@@ -403,10 +422,10 @@ function handleCustomResponse(string $operation, string $tableName, ResponseInte
             ->withHeader('Content-Length', strlen($content))
             ->withBody($stream);
     }
+
     return $response;
 }
 
-//NOTE would the name 'is(Not)MutationOperation' fit better for this functions function
 function preventMutationOperations(string $operation, string $tableName): bool
 {
     return $operation === 'list'     // /records/{TABLE}
