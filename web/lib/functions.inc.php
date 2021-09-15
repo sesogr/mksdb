@@ -211,7 +211,7 @@ function getSongInfoMulti(array $songs, PDO $dbConn): array {
     return $query->fetchAll(PDO::FETCH_CLASS, SearchResult::class);
 }
 
-function trimResults(array $results, int $keywordCount, int $phraseCount, bool $preferFullMatches = true, int $maxAmount = 20): array {//TODO default value for maxAmount is just an example threshold
+function trimResults(array $results, int $keywordCount, int $phraseCount, bool $preferFullMatches = true): array {
     arsort($results);
 
     /* compute minimum score:
@@ -239,9 +239,6 @@ function trimResults(array $results, int $keywordCount, int $phraseCount, bool $
     foreach($results as $id => $score)
         if($score->totalScore() < $minScore)
             unset($results[$id]);
-
-    if(count($results) > $maxAmount)
-        $results = array_slice($results, 0, $maxAmount, true);
 
     return $results;
 }
@@ -425,10 +422,10 @@ function handleCustomResponse(string $operation, string $tableName, ResponseInte
             ->withHeader('Content-Length', strlen($content))
             ->withBody($stream);
     }
+
     return $response;
 }
 
-//NOTE would the name 'is(Not)MutationOperation' fit better for this functions function
 function preventMutationOperations(string $operation, string $tableName): bool
 {
     return $operation === 'list'     // /records/{TABLE}
