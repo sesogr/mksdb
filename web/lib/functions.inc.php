@@ -149,52 +149,43 @@ function getSongFullInfo(int $songId, PDO $dbConn): array {
     return $ret;
 }
 
-/*
-function filterExclusions(array $songs, array $excludedKeywords, array $excludedPhrases, PDO $dbConn): array {
-    //$exclusionList = array_merge($excludedKeywords, $excludedPhrases);
-    //NOTE skipped checking for excluded keywords because this is done in collectWordMatches
-    $exclusionList = $excludedPhrases;
+/**
+ * computes the score for a song and the requested query
+ * @param int $songId
+ * @param array $keywords
+ * @param array $phrases
+ * @param array $excludedKeywords
+ * @param array $excludedPhrases
+ * @param int $keywordMatches
+ * @param PDO $dbConn
+ * @return SearchResultScore
+ */
+function scoreSong(int $songId, array $keywords, array $phrases, array $excludedKeywords, array $excludedPhrases, int $keywordMatches, PDO $dbConn): SearchResultScore {
+    $score = SearchResultScore::newEmpty();
 
-    $filtered = [];
-    foreach($songs as $song){
-        $songInfo = getSongFullInfo($song, $dbConn);
-        foreach($exclusionList as $exclude)
-            foreach($songInfo as $songInfoPart)
-                if (strpos($songInfoPart, $exclude) !== false)
-                    continue 3;// skip song
-
-        $filtered[] = $song;
-    }
-    return $filtered;
-}
-*/
-
-function scoreSong(int $songId, array $keywords, array $phrases, array $excludedKeywords, array $excludedPhrases, int $keywordMatches, PDO $dbConn): int {
-    //TODO count keyword and phrases occurrences in full song info
-    // (keywords => 1, full match keywords => 10, phrases => 100; with excluded => -9999)
-    // (TODO adjust score weight)
-    $score = 0;
-
-    // count matching phrases (scores the most)
+    // count matching phrases and search for exclusions
     $songInfo = getSongFullInfo($songId, $dbConn);
     foreach($songInfo as $infoPart){
         foreach ($excludedKeywords as $excludedKeyword)
             if(mb_stripos($infoPart, $excludedKeyword, 0, 'UTF-8') !== false)
-                return -9999;
+                return SearchResultScore::newExcluded();
+
         foreach($excludedPhrases as $excludedPhrase)
             if(mb_stripos($infoPart, $excludedPhrase, 0, 'UTF-8') !== false)
-                return -9999;
+                return SearchResultScore::newExcluded();
+
         foreach($phrases as $phrase)
             if(mb_stripos($infoPart, $phrase, 0, 'UTF-8') !== false)
-                $score += 100;
+                $score->phraseMatchCount += 1;
     }
 
-    // if all keywords were matched, the result should be scored higher
-    //  (treat it like a lite version of a phrase)
+    $score->keywordMatchCount = $keywordMatches;
+
+    // if all keywords or phrases were matched, the result should be scored higher
     if($keywordMatches === count($keywords))
-        $score += 10 * $keywordMatches;
-    else
-        $score += $keywordMatches;
+        $score->fullKeywordsMatchCount = $keywordMatches;
+    if($score->phraseMatchCount == count($phrases))
+        $score->fullPhrasesMatchCount = $score->phraseMatchCount;
 
     return $score;
 }
@@ -220,14 +211,33 @@ function getSongInfoMulti(array $songs, PDO $dbConn): array {
     return $query->fetchAll(PDO::FETCH_CLASS, SearchResult::class);
 }
 
-function trimResults(array $results, int $keywordCount, int $phraseCount, int $maxAmount): array {
+function trimResults(array $results, int $keywordCount, int $phraseCount, bool $preferFullMatches = true, int $maxAmount = 20): array {//TODO default value for maxAmount is just an example threshold
     arsort($results);
 
-    // compute minimum score: if searched with keywords => 1, if searched only with phrases => $phraseCount * phraseMultiplier
-    $minScore = $keywordCount > 0 ? 1 : $phraseCount * 100;
+    /* compute minimum score:
+        if searched with keywords -> 1 * KEYWORD_MULTIPLIER
+        if searched only with phrases -> 1 * PHRASE_MULTIPLIER
+        if one result has a full match (count of matched keywords == keywordCount) -> $keywordCount * KEYWORD_FULL_MATCH_MULTIPLIER
+    */
+
+    $onlyPhrasesUsed = $keywordCount === 0;
+    $minScore = $onlyPhrasesUsed ? SearchResultScore::PHRASE_MULTIPLIER : SearchResultScore::KEYWORD_MULTIPLIER;
+
+    if($preferFullMatches && !$onlyPhrasesUsed) {
+        foreach($results as $id => $score) {
+            if($score->fullPhrasesMatchCount > 0){
+                $minScore = $phraseCount * SearchResultScore::FULL_MATCH_MULTIPLIER * SearchResultScore::PHRASE_MULTIPLIER;
+                break;
+            }
+            if($score->fullKeywordsMatchCount > 0) {
+                $minScore = $keywordCount * SearchResultScore::FULL_MATCH_MULTIPLIER * SearchResultScore::KEYWORD_MULTIPLIER;
+                break;
+            }
+        }
+    }
 
     foreach($results as $id => $score)
-        if($score < $minScore)
+        if($score->totalScore() < $minScore)
             unset($results[$id]);
 
     if(count($results) > $maxAmount)
@@ -249,11 +259,11 @@ function gatherSearchResults(string $search, PDO $db): array
     $resultIds = [];
     foreach($matchedSongs as $song => $matchCount){
         $score = scoreSong($song, $keywords, $phrases, $excludedKeywords, $excludedPhrases, $matchCount, $db);
-        if($score > 0)
+        if($score->totalScore() > 0)
             $resultIds[$song] = $score;
     }
 
-    $resultIds = trimResults($resultIds, count($keywords), count($phrases), 20);//TODO this is just an example threshold
+    $resultIds = trimResults($resultIds, count($keywords), count($phrases));
 
     return getSongInfoMulti(array_keys($resultIds), $db);
 }
