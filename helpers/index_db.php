@@ -1,13 +1,17 @@
 <?php
 
-require_once "./lib/index_db.inc.php";
+require_once __DIR__ . "/lib/index_db.inc.php";
 
-function myLog(string $level, string $msg): void {
-    echo "$level : $msg \n";
-}
+$Loggers->addLogger(new class implements LoggerSubscriber{
+    public function log(string $type, string $message){
+        echo "$type : $message \n";
+    }
+});
 
 function run(): void {
-    myLog('info', 're-creating index');
+    global $Loggers;
+
+    $Loggers->log('info', 're-creating index');
 
     $conn = createConnection();
 
@@ -17,16 +21,16 @@ function run(): void {
 
     $indexData = [];
     foreach($tablesToIndex as $table) {
-        myLog('info', "indexing table $table");
+        $Loggers->log('info', "indexing table $table");
 
         $tableIndexData = indexTable($table, $conn);
         if($tableIndexData !== false)
             mergeMap($indexData, $tableIndexData);
     }
 
-    myLog('info', 'writing index');
-    addIndex($indexData, $conn);
+    $Loggers->log('info', 'writing index');
+    writeIndex($indexData, $conn);
 
-    myLog('info', 'finished');
+    $Loggers->log('info', 'finished');
 }
 run();

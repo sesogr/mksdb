@@ -20,5 +20,3 @@ function myLog(string $level, string $msg): void {
 }
 
 it('lists all tables which should be indexed', fn() => listTables($db) == ['mks_city', 'mks_collection', 'mks_genre', 'mks_person', 'mks_publisher', 'mks_song', 'mks_source']);
-
-file_put_contents("log.json", json_encode(indexTable('mks_person', $db), JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));

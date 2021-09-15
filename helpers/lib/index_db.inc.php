@@ -1,5 +1,7 @@
 <?php declare(strict_types=1);
 
+include_once __DIR__ . "/SubscribableLogger.inc.php";
+
 const ADDRESS = 'mksdb-mariadb';
 const PORT = '3306';
 const USERNAME = 'schlager';
@@ -7,8 +9,18 @@ const PASSWORD = 'zorofzoftumev';
 const DATABASE = 'schlager';
 const INDEX_NAME = "mks_word_index";
 
+$Loggers = new SubscribableLogger();
+
 function clearIndex(PDO $dbConn){
-    $dbConn->exec('TRUNCATE TABLE ' . INDEX_NAME . ';');
+    $dbConn->exec('DROP TABLE IF EXISTS ' . INDEX_NAME);
+    $dbConn->exec(sprintf('CREATE TABLE %s (
+                                word text         not null,
+                                song int unsigned not null,
+                                unique (word, song),
+                                constraint %1$s_ibfk_1
+                                foreign key (song) references mks_song (id)
+                                on update cascade on delete cascade
+                            );', INDEX_NAME));
 }
 
 function listTables(PDO $dbConn): array {
@@ -201,7 +213,12 @@ function indexTable(string $table, PDO $conn){
     }
 }
 
-function addIndex(array $indexData, PDO $conn){
+/**
+ * writes the index-data (created by indexTable) into the db
+ * @param array $indexData array of the format [word => [song-id, ...], ...]
+ * @param PDO $conn
+ */
+function writeIndex(array $indexData, PDO $conn){
     $stm = $conn->prepare('INSERT IGNORE INTO mks_word_index VALUES (?, ?)');
     foreach($indexData as $word => $songs) {
         foreach ($songs as $song) {
