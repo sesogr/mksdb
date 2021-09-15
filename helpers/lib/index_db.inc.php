@@ -1,11 +1,15 @@
 <?php declare(strict_types=1);
 
+include_once __DIR__ . "/SubscribableLogger.inc.php";
+
 const ADDRESS = 'mksdb-mariadb';
 const PORT = '3306';
 const USERNAME = 'schlager';
 const PASSWORD = 'zorofzoftumev';
 const DATABASE = 'schlager';
 const INDEX_NAME = "mks_word_index";
+
+$Loggers = new SubscribableLogger();
 
 function clearIndex(PDO $dbConn){
     $dbConn->exec('DROP TABLE IF EXISTS ' . INDEX_NAME);
