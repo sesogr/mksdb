@@ -1,6 +1,6 @@
 <?php
 
-require_once "./lib/index_db.inc.php";
+require_once __DIR__ . "/lib/index_db.inc.php";
 
 function myLog(string $level, string $msg): void {
     echo "$level : $msg \n";

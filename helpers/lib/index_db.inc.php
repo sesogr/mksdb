@@ -8,7 +8,15 @@ const DATABASE = 'schlager';
 const INDEX_NAME = "mks_word_index";
 
 function clearIndex(PDO $dbConn){
-    $dbConn->exec('TRUNCATE TABLE ' . INDEX_NAME . ';');
+    $dbConn->exec('DROP TABLE IF EXISTS ' . INDEX_NAME);
+    $dbConn->exec(sprintf('CREATE TABLE %s (
+                                word text         not null,
+                                song int unsigned not null,
+                                unique (word, song),
+                                constraint %1$s_ibfk_1
+                                foreign key (song) references mks_song (id)
+                                on update cascade on delete cascade
+                            );', INDEX_NAME));
 }
 
 function listTables(PDO $dbConn): array {
