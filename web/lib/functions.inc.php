@@ -269,9 +269,9 @@ function gatherSearchResults(string $search, PDO $db): array
 }
 
 /*
- * uses slow search-query (with 'LIKE') which supports shortcuts
+ * uses slow search-query (with 'LIKE') which supports wildcards
  */
-function gatherSearchResultsWithShortcuts(string $search, PDO $db): array {
+function gatherSearchResultsWithWildcards(string $search, PDO $db): array {
     [$keywords, $phrases, $ranges, $excludedKeywords, $excludedPhrases, $excludedRanges] = parseSearch($search);
     // phrases have to be included into keywords for buildSongMatches
     $allKeywords = [...$keywords];
@@ -285,7 +285,7 @@ function gatherSearchResultsWithShortcuts(string $search, PDO $db): array {
     foreach (buildSongMatches($db, $allExcludedKeywords) as $songId => $exclusionMatches) {
         unset($relevanceMap[$songId]);
     }
-    $andMatches = array_filter($relevanceMap, fn($r) => $r === count($keywords));//TODO implement this (kind of) into my search (for 1. testcase)
+    $andMatches = array_filter($relevanceMap, fn($r) => $r === count($keywords));
 
     return getSongInfoMulti(array_keys(count($andMatches) > 0 ? $andMatches : $relevanceMap), $db);
 }
