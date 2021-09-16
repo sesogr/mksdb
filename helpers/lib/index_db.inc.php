@@ -244,41 +244,62 @@ class DbIndexer
     }
 
     /**
-     * adds the <code>value</code> to the array (makes no duplicates) for <code>key</code>
-     * or creates a new array with the <code>value</code> if the map does not contain that key
-     * @param array $map the map
-     * @param string $key the key of the array
+     * adds the <code>value</code> to the bottom-level array (makes no duplicates) for <code>keys</code>
+     * or creates a new array with the <code>value</code> if the map does not contain that key (also creates whole sub-path);
+     * the array is located by the <code>keys</code> from top- to bottom-level
+     * @param array $map the map (may be nested)
      * @param string $value the value to add
+     * @param string ...$keys the keys to locate the array
      */
-    public function mapPutOrAdd(array &$map, string $key, string $value): void
+    public function mapDeepPutOrAdd(array &$map, string $value, string ...$keys): void
     {
-        if (array_key_exists($key, $map)) {
-            $array = $map[$key];
-            if (!in_array($value, $array))
-                array_push($array, $value);
-        } else {
-            $array = [$value];
+        if(count($keys) > 1){
+            $key = array_shift($keys);
+
+            // if map does not contain sub-path -> create it (level per level)
+            if(!array_key_exists($key, $map))
+                $map[$key] = [];
+
+            // go to next level
+            $this->mapDeepPutOrAdd($map[$key], $value, ...$keys);// keys were shifted
+        }else{
+            // bottom-level
+            $key = array_shift($keys);
+            if (array_key_exists($key, $map)) {
+                $array = $map[$key];
+                if (!in_array($value, $array))
+                    array_push($array, $value);
+            } else {
+                $array = [$value];
+            }
+            $map[$key] = $array;
         }
-        $map[$key] = $array;
     }
 
     /**
      * merges the input-map into the destination map (array of existing keys will be merged; without duplicates);
-     * both maps must be of the following format: [key => array[...]]
+     * the bottom-level arrays of both maps must be number-indexed
      * @param array $map the destination map
      * @param array $inp the input map
      */
-    public function mergeMap(array &$map, array $inp)
+    public function mapDeepMerge(array &$map, array $inp)
     {
-        foreach ($inp as $key => $arr) {
-            if (array_key_exists($key, $map)) {
-                $destArr = $map[$key];
-                foreach ($arr as $value)
-                    if (!in_array($value, $destArr))
-                        array_push($destArr, $value);
-                $map[$key] = $destArr;
-            } else {
-                $map[$key] = $arr;
+        foreach($inp as $iKey => $iVal){
+            if(gettype($iVal) === 'array'){
+                // merge sub-map
+                if(isset($map[$iKey])){
+                    $mVal = &$map[$iKey];
+                    if(gettype($mVal) !== 'array')
+                        throw new UnexpectedValueException('array-value can not be merged into non-array-value in map');
+
+                    $this->mapDeepMerge($mVal, $iVal);
+                }else{
+                    $map[$iKey] = $iVal;
+                }
+            }else{
+                // add value
+                if(!in_array($iVal, $map))
+                    array_push($map, $iVal);
             }
         }
     }
