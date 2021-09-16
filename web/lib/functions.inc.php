@@ -4,6 +4,9 @@ use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
 
 require_once __DIR__ . '/types.inc.php';
+require_once __DIR__ . '/utils.inc.php';
+
+use function Utils\arrayMergeWithCustomResolver;
 
 function addTablePrefixesToJoinParameter(string $query): string
 {
@@ -292,6 +295,49 @@ function gatherSearchResultsWithWildcards(string $search, PDO $db): array {
     return getSongInfoMulti(array_keys(count($andMatches) > 0 ? $andMatches : $relevanceMap), $db);
 }
 
+function gatherSearchResultsByFields(array $searchFields, PDO $db): array {
+    $includedSongs = [];
+    $excludedSongs = [];
+
+    foreach($searchFields as $field => $value){
+        [$keywords, $phrases, $ranges, $excludedKeywords, $excludedPhrases, $excludedRanges] = parseSearch($value);
+
+        // phrases have to be included into keywords for collectWordMatches
+        $keywordsWithPhrases = $keywords;
+        foreach($phrases as $phrase)
+            $keywordsWithPhrases = array_merge($keywordsWithPhrases, preg_split('[\s+]', $phrase));
+        $excludedKeywordsWithPhrases = $excludedKeywords;
+        foreach($excludedPhrases as $phrase)
+            $excludedKeywordsWithPhrases = array_merge($excludedKeywordsWithPhrases, preg_split('[\s+]', $phrase));
+
+        $includedSongs = arrayMergeWithCustomResolver($includedSongs, collectWordMatchesWithTopic($keywordsWithPhrases, $field, $db),
+            function($vA, $vB){
+                // return max count (for later scoring)
+                return max($vA, $vB);
+        });
+        $excludedSongs = array_merge($excludedSongs, collectWordMatchesWithTopic($excludedKeywordsWithPhrases, $field, $db));
+    }
+
+    // filter out all excluded songs
+    $songs = array_filter($includedSongs, function ($song) use ($excludedSongs) {//TODO excluded phrases are treated wrong
+        return !in_array($song, array_keys($excludedSongs));
+    }, ARRAY_FILTER_USE_KEY);
+
+    //TODO scoring
+
+    return getSongInfoMulti(array_keys($songs), $db);
+}
+
+function collectWordMatchesWithTopic(array $words, string $topic, PDO $dbConn): array {
+    $ret = [];
+    $query = $dbConn->query(sprintf('SELECT song, COUNT(DISTINCT word) AS c FROM mks_word_index WHERE word IN (%s) AND topic = \'%s\' GROUP BY song ORDER BY c DESC;',
+        ('\'' . implode('\', \'', $words) . '\''), $topic));
+    foreach ($query->fetchAll(PDO::FETCH_NUM) as $row){
+        $ret[$row[0]] = (int)$row[1];
+    }
+    return $ret;
+}
+
 /**
  * splits up the search-query into keywords, phrases, ranges and their excluded counterparts
  * @param string $search
@@ -390,7 +436,7 @@ function handleCustomRequest(string $operation, string $tableName, ServerRequest
 
 function handleCustomResponse(string $operation, string $tableName, ResponseInterface $response, $environment): ?ResponseInterface
 {
-    if (isset($environment->search['q'])) {
+    if (isset($environment->search)) {
         $engine = 'v2';
         if(isset($environment->search['engine'])){
             switch ($environment->search['engine']){
@@ -416,13 +462,28 @@ function handleCustomResponse(string $operation, string $tableName, ResponseInte
         );
 
         $searchResults = null;
-        switch ($engine){
-            case 'v1':
-                $searchResults = gatherSearchResultsWithWildcards($environment->search['q'], $db);
-                break;
-            case 'v2':
-                $searchResults = gatherSearchResults($environment->search['q'], $db);
-                break;
+        if(isset($environment->search['q'])) {
+            // normal search
+            switch ($engine) {
+                case 'v1':
+                    $searchResults = gatherSearchResultsWithWildcards($environment->search['q'], $db);
+                    break;
+                case 'v2':
+                    $searchResults = gatherSearchResults($environment->search['q'], $db);
+                    break;
+            }
+        }else{
+            // advanced search
+            $searchFields = [
+                'song-name' => $environment->search['title'] ?? null,
+                'composer' => $environment->search['composer'] ?? null,
+                'writer' => $environment->search['writer'] ?? null,
+                'song-cpr_y' => $environment->search['copyrightYear'] ?? null,
+                'publisher' => $environment->search['publisher'] ?? null,
+                'song-origin' => $environment->search['origin'] ?? null,
+                'artist' => $environment->search['artist'] ?? null//TODO what is artist (cover_artist / performer / ...)?
+            ];
+            $searchResults = gatherSearchResultsByFields($searchFields, $db);
         }
 
         $content = json_encode(
