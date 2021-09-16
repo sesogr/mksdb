@@ -50,22 +50,29 @@ function compareArrayDeep(array $a, array $b): bool {
     if(count($a) !== count($b)) return false;// if length is the same, we can compare by iterating ver only one array-key-set
 
     foreach($a as $kA => $vA){
-        if(!isset($b[$kA]))
+        if(!isset($b[$kA])) {
             return false;
+        }
 
         $vB = $b[$kA];
 
-        if(gettype($vA) !== gettype($vB))
+        if(gettype($vA) !== gettype($vB)) {
             return false;
+        }
 
         if(gettype($vA) === 'array'){// recursively compare arrays
             if(isArrayAssociative($vA)) {
-                if (!isArrayAssociative($vB)) return false;
-
-                if (!compareArrayDeep($vA, $vB))
+                if (!isArrayAssociative($vB)) {
                     return false;
+                }
+
+                if (!compareArrayDeep($vA, $vB)) {
+                    return false;
+                }
             } else {
-                if (isArrayAssociative($vB)) return false;
+                if (isArrayAssociative($vB)) {
+                    return false;
+                }
 
                 // sort number-indexed arrays so that order does not matter
                 $vACpy = $vA;
@@ -73,12 +80,14 @@ function compareArrayDeep(array $a, array $b): bool {
                 $vBCpy = $vACpy;
                 asort($vBCpy);
 
-                if (!compareArrayDeep($vACpy, $vBCpy))
+                if (!compareArrayDeep($vACpy, $vBCpy)) {
                     return false;
+                }
             }
         }else{// just use standard value comparison
-            if($vA !== $vB)
+            if($vA !== $vB) {
                 return false;
+            }
         }
     }
 
