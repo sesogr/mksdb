@@ -19,7 +19,7 @@ class SubscribableLogger
      */
     public function addLogger(LoggerSubscriber $logger){
         if(!in_array($logger, $this->subscibers))
-            $this->subscibers = [...$this->subscibers, $logger];
+            array_push($this->subscibers, $logger);
     }
 
     /**

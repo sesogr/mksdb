@@ -8,6 +8,9 @@
 
 4. Edit [config.inc.php](./web/config.inc.php) to configure the connection to your database. The original values only apply to the docker container spun up during development and thus have no other meaning than serving as an example.
 
+extra:
+   - DbIndexer needs a PHP memory-limit of at least 512 MB
+
 # Work log
 
 1. export as CSV with all text cells quoted
@@ -22,7 +25,8 @@
    1. `create table mks_word_index(
       word text         not null,
       song int unsigned not null,
-      unique (word, song),
+      topic text        not null,
+      unique (word, song, topic),
       constraint mks_word_index_ibfk_1
       foreign key (song) references mks_song (id)
       on update cascade on delete cascade
