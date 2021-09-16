@@ -1,6 +1,9 @@
 <?php declare(strict_types=1);
 
 include_once __DIR__ . "/SubscribableLogger.inc.php";
+require_once __DIR__ . '/../../web/lib/utils.inc.php';
+
+use function Utils\mapDeepPutOrAdd;
 
 class DbIndexer
 {
@@ -80,7 +83,7 @@ class DbIndexer
                     // split text and create mapping
                     foreach ($this->splitText($text) as $word)
                         if($word !== '')
-                            $this->mapDeepPutOrAdd($ret, 'city', $word, $song);
+                            mapDeepPutOrAdd($ret, 'city', $word, $song);
                 }
 
                 return $ret;
@@ -98,7 +101,7 @@ class DbIndexer
                     // split text and create mapping
                     foreach ($this->splitText($text) as $word)
                         if($word !== '')
-                            $this->mapDeepPutOrAdd($ret, 'collection', $word, $song);
+                            mapDeepPutOrAdd($ret, 'collection', $word, $song);
                 }
 
                 return $ret;
@@ -116,7 +119,7 @@ class DbIndexer
                     // split text and create mapping
                     foreach ($this->splitText($text) as $word)
                         if($word !== '')
-                            $this->mapDeepPutOrAdd($ret, 'genre', $word, $song);
+                            mapDeepPutOrAdd($ret, 'genre', $word, $song);
                 }
 
                 return $ret;
@@ -146,7 +149,7 @@ class DbIndexer
                         // split text and create mapping
                         foreach ($this->splitText($text) as $word)
                             if($word !== '')
-                                $this->mapDeepPutOrAdd($ret, $topic, $word, $song);
+                                mapDeepPutOrAdd($ret, $topic, $word, $song);
                     }
                 }
 
@@ -165,7 +168,7 @@ class DbIndexer
                     // split text and create mapping
                     foreach ($this->splitText($text) as $word)
                         if($word !== '')
-                            $this->mapDeepPutOrAdd($ret, 'publisher', $word, $song);
+                            mapDeepPutOrAdd($ret, 'publisher', $word, $song);
                 }
 
                 return $ret;
@@ -183,7 +186,7 @@ class DbIndexer
                     // split text and create mapping
                     foreach ($this->splitText($text) as $word)
                         if($word !== '')
-                            $this->mapDeepPutOrAdd($ret, 'source', $word, $song);
+                            mapDeepPutOrAdd($ret, 'source', $word, $song);
                 }
 
                 return $ret;
@@ -207,7 +210,7 @@ class DbIndexer
                         // split text and create mapping
                         foreach ($this->splitText($text) as $word)
                             if($word !== '')
-                                $this->mapDeepPutOrAdd($ret, $col, $word, $song);
+                                mapDeepPutOrAdd($ret, $col, $word, $song);
                     }
                 }
 
@@ -246,66 +249,5 @@ class DbIndexer
     public function splitText(string $text): array
     {
         return preg_split('[\s+]', trim($text));
-    }
-
-    /**
-     * adds the <code>value</code> to the bottom-level array (makes no duplicates) for <code>keys</code>
-     * or creates a new array with the <code>value</code> if the map does not contain that key (also creates whole sub-path);
-     * the array is located by the <code>keys</code> from top- to bottom-level
-     * @param array $map the map (may be nested)
-     * @param string $value the value to add
-     * @param string ...$keys the keys to locate the array
-     */
-    public function mapDeepPutOrAdd(array &$map, string $value, string ...$keys): void
-    {
-        if(count($keys) > 1){
-            $key = array_shift($keys);
-
-            // if map does not contain sub-path -> create it (level per level)
-            if(!array_key_exists($key, $map))
-                $map[$key] = [];
-
-            // go to next level
-            $this->mapDeepPutOrAdd($map[$key], $value, ...$keys);// keys were shifted
-        }else{
-            // bottom-level
-            $key = array_shift($keys);
-            if (array_key_exists($key, $map)) {
-                $array = $map[$key];
-                if (!in_array($value, $array))
-                    array_push($array, $value);
-            } else {
-                $array = [$value];
-            }
-            $map[$key] = $array;
-        }
-    }
-
-    /**
-     * merges the input-map into the destination map (array of existing keys will be merged; without duplicates);
-     * the bottom-level arrays of both maps must be number-indexed
-     * @param array $map the destination map
-     * @param array $inp the input map
-     */
-    public function mapDeepMerge(array &$map, array $inp)
-    {
-        foreach($inp as $iKey => $iVal){
-            if(gettype($iVal) === 'array'){
-                // merge sub-map
-                if(isset($map[$iKey])){
-                    $mVal = &$map[$iKey];
-                    if(gettype($mVal) !== 'array')
-                        throw new UnexpectedValueException('array-value can not be merged into non-array-value in map');
-
-                    $this->mapDeepMerge($mVal, $iVal);
-                }else{
-                    $map[$iKey] = $iVal;
-                }
-            }else{
-                // add value
-                if(!in_array($iVal, $map))
-                    array_push($map, $iVal);
-            }
-        }
     }
 }
