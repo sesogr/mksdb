@@ -105,7 +105,8 @@ function buildSongMatches(PDO $db, array $keywords): array
  */
 function collectWordMatches(array $words, PDO $dbConn): array {
     $ret = [];
-    $query = $dbConn->query(sprintf('SELECT song, COUNT(song) AS c FROM mks_word_index WHERE word IN (%s) GROUP BY song ORDER BY c DESC;',
+    //TODO this query should be tested
+    $query = $dbConn->query(sprintf('SELECT song, COUNT(DISTINCT word) AS c FROM mks_word_index WHERE word IN (%s) GROUP BY song ORDER BY c DESC;',
         '\'' . implode('\', \'', $words) . '\''));
     foreach ($query->fetchAll(PDO::FETCH_NUM) as $row){
         $ret[$row[0]] = (int)$row[1];
