@@ -21,7 +21,8 @@ class DbIndexer
         $this->dbConn->exec(sprintf('CREATE TABLE %s (
                                 word text         not null,
                                 song int unsigned not null,
-                                unique (word, song),
+                                topic text        not null,
+                                unique (word, song, topic),
                                 constraint %1$s_ibfk_1
                                 foreign key (song) references mks_song (id)
                                 on update cascade on delete cascade

@@ -22,7 +22,8 @@
    1. `create table mks_word_index(
       word text         not null,
       song int unsigned not null,
-      unique (word, song),
+      topic text        not null,
+      unique (word, song, topic),
       constraint mks_word_index_ibfk_1
       foreign key (song) references mks_song (id)
       on update cascade on delete cascade
