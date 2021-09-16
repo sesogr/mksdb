@@ -61,12 +61,14 @@ function buildQuery(PDO $db): PDOStatement
             implode(
                 " union ",
                 array_map(
-                    fn($list) => sprintf(
-                        "select a.song_id id, concat(' ', strip_punctuation(b.name), ' ') collate utf8mb4_unicode_ci name "
-                        . 'from mks_x_%s_song a join mks_%s b on b.id = a.%1$s_id',
-                        $list,
-                        $xrefs[$list],
-                    ),
+                    function ($list) use ($xrefs) {
+                        return sprintf(
+                            "select a.song_id id, concat(' ', strip_punctuation(b.name), ' ') collate utf8mb4_unicode_ci name "
+                            . 'from mks_x_%s_song a join mks_%s b on b.id = a.%1$s_id',
+                            $list,
+                            $xrefs[$list],
+                        );
+                    },
                     array_keys($xrefs)
                 )
             ),
@@ -247,9 +249,9 @@ function gatherSearchResults(string $search, PDO $db): array
 {
     [$keywords, $phrases, $ranges, $excludedKeywords, $excludedPhrases, $excludedRanges] = parseSearch($search);
     // phrases have to be included into keywords for collectWordMatches
-    $keywordsWithPhrases = [...$keywords];
+    $keywordsWithPhrases = $keywords;
     foreach($phrases as $phrase)
-        $keywordsWithPhrases = [...$keywordsWithPhrases, ...preg_split('[\s+]', $phrase)];
+        $keywordsWithPhrases = array_merge($keywordsWithPhrases, preg_split('[\s+]', $phrase));
 
     $matchedSongs = collectWordMatches($keywordsWithPhrases, $db);
 
@@ -271,18 +273,20 @@ function gatherSearchResults(string $search, PDO $db): array
 function gatherSearchResultsWithWildcards(string $search, PDO $db): array {
     [$keywords, $phrases, $ranges, $excludedKeywords, $excludedPhrases, $excludedRanges] = parseSearch($search);
     // phrases have to be included into keywords for buildSongMatches
-    $allKeywords = [...$keywords];
+    $allKeywords = $keywords;
     foreach($phrases as $phrase)
-        $allKeywords = [...$allKeywords, $phrase];
-    $allExcludedKeywords = [...$excludedKeywords];
+        array_push($allKeywords, $phrase);
+    $allExcludedKeywords = $excludedKeywords;
     foreach($excludedPhrases as $phrase)
-        $allExcludedKeywords = [...$allExcludedKeywords, $phrase];
+        array_push($allExcludedKeywords, $phrase);
 
     $relevanceMap = buildSongMatches($db, $allKeywords);
     foreach (buildSongMatches($db, $allExcludedKeywords) as $songId => $exclusionMatches) {
         unset($relevanceMap[$songId]);
     }
-    $andMatches = array_filter($relevanceMap, fn($r) => $r === count($keywords));
+    $andMatches = array_filter($relevanceMap, function ($r) use ($keywords) {
+        return $r === count($keywords);
+    });
 
     return getSongInfoMulti(array_keys(count($andMatches) > 0 ? $andMatches : $relevanceMap), $db);
 }
@@ -316,8 +320,14 @@ function splitKeywords(string $search): array
 {
     $keywords = preg_split('<\\s+>', $search);
     return [
-        array_values(array_filter($keywords, fn($s) => $s && $s[0] !== '-')),
-        array_map(fn($s) => ltrim($s, '-'), array_values(array_filter($keywords, fn($s) => $s && $s[0] === '-'))),
+        array_values(array_filter($keywords, function ($s) {
+            return $s && $s[0] !== '-';
+        })),
+        array_map(function ($s) {
+            return ltrim($s, '-');
+        }, array_values(array_filter($keywords, function ($s) {
+            return $s && $s[0] === '-';
+        }))),
     ];
 }
 
@@ -328,12 +338,22 @@ function splitKeywords(string $search): array
 function splitPhrases(string $search): array
 {
     $particles = explode('"', $search);
-    $nonPhrases = array_map('trim', array_values(array_filter($particles, fn($index) => $index % 2 === 0, ARRAY_FILTER_USE_KEY)));
-    $phrases = array_map('trim', array_values(array_filter($particles, fn($index) => $index % 2 === 1, ARRAY_FILTER_USE_KEY)));
+    $nonPhrases = array_map('trim', array_values(array_filter($particles, function ($index) {
+        return $index % 2 === 0;
+    }, ARRAY_FILTER_USE_KEY)));
+    $phrases = array_map('trim', array_values(array_filter($particles, function ($index) {
+        return $index % 2 === 1;
+    }, ARRAY_FILTER_USE_KEY)));
     return [
-        implode(' ', array_filter(array_map(fn($s) => rtrim($s, '- '), $nonPhrases))),
-        array_values(array_filter($phrases, fn($key) => !$nonPhrases[$key] || $nonPhrases[$key][-1] !== '-', ARRAY_FILTER_USE_KEY)),
-        array_values(array_filter($phrases, fn($key) => $nonPhrases[$key] && $nonPhrases[$key][-1] === '-', ARRAY_FILTER_USE_KEY)),
+        implode(' ', array_filter(array_map(function ($s) {
+            return rtrim($s, '- ');
+        }, $nonPhrases))),
+        array_values(array_filter($phrases, function ($key) use ($nonPhrases) {
+            return !$nonPhrases[$key] || $nonPhrases[$key][-1] !== '-';
+        }, ARRAY_FILTER_USE_KEY)),
+        array_values(array_filter($phrases, function ($key) use ($nonPhrases) {
+            return $nonPhrases[$key] && $nonPhrases[$key][-1] === '-';
+        }, ARRAY_FILTER_USE_KEY)),
     ];
 }
 

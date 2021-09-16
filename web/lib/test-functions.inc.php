@@ -4,10 +4,12 @@ function hasAtLeastSoManyResultsWhichAllMatchCallbackV2(PDO $db, string $search,
 {
     $stats = array_reduce(
         gatherSearchResults($search, $db),
-        fn($accu, SearchResult $item) => [
-            'total' => 1 + $accu['total'],
-            'match' => ($matcher($item) ? 1 : 0) + $accu['match'],
-        ],
+        function ($accu, SearchResult $item) use ($matcher) {
+            return [
+                'total' => 1 + $accu['total'],
+                'match' => ($matcher($item) ? 1 : 0) + $accu['match'],
+            ];
+        },
         ['total' => 0, 'match' => 0]
     );
     return $stats['total'] >= $minResults && $stats['match'] === $stats['total'];
@@ -17,10 +19,12 @@ function hasAtLeastSoManyResultsWhichAllMatchCallbackV1(PDO $db, string $search,
 {
     $stats = array_reduce(
         gatherSearchResultsWithWildcards($search, $db),
-        fn($accu, SearchResult $item) => [
-            'total' => 1 + $accu['total'],
-            'match' => ($matcher($item) ? 1 : 0) + $accu['match'],
-        ],
+        function ($accu, SearchResult $item) use ($matcher) {
+            return [
+                'total' => 1 + $accu['total'],
+                'match' => ($matcher($item) ? 1 : 0) + $accu['match'],
+            ];
+        },
         ['total' => 0, 'match' => 0]
     );
     return $stats['total'] >= $minResults && $stats['match'] === $stats['total'];

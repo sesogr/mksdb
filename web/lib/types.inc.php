@@ -96,10 +96,10 @@ class SearchResultScore {
     public const EXCLUDED = -9999;
     public const INVALID = -1;
 
-    public int $keywordMatchCount;
-    public int $phraseMatchCount;
-    public int $fullKeywordsMatchCount;
-    public int $fullPhrasesMatchCount;
+    public $keywordMatchCount;
+    public $phraseMatchCount;
+    public $fullKeywordsMatchCount;
+    public $fullPhrasesMatchCount;
 
     public static function newEmpty(): SearchResultScore {
         $ret = new SearchResultScore();
