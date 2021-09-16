@@ -8,6 +8,9 @@
 
 4. Edit [config.inc.php](./web/config.inc.php) to configure the connection to your database. The original values only apply to the docker container spun up during development and thus have no other meaning than serving as an example.
 
+extra:
+   - DbIndexer needs a PHP memory-limit of at least 512 MB
+
 # Work log
 
 1. export as CSV with all text cells quoted
