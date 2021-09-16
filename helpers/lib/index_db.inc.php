@@ -53,13 +53,19 @@ class DbIndexer
 
     /**
      * creates index-data for each word in each column of the table;
-     * index-format: [word => [song-id, ...], ...]
+     * index-format: [word => [song-id => topic, ...], ...]
      * @param string $table
      * @return false|mixed
      */
     function indexTable(string $table)
     {
-        // map functions to tables; function returns: [word => [song-id, ...], ...]
+        /*
+         * possible topics: city, collection, genre, composer, cover_artist, performer, writer, publisher, source,
+         *      song-name, song-cpr_y, song-cpr_remark, song-created, song-label, song-pub_ser, song-pub_nr, song-rec_nr,
+         *      song-origin, song-dedication, song-rev, song-addition
+         */
+
+        // map functions to tables; function returns: [word => [song-id => topic, ...], ...]
         $indexers = [
             'mks_city' => function () {
                 $ret = [];
@@ -72,9 +78,9 @@ class DbIndexer
                     $song = $row[1];
 
                     // split text and create mapping
-                    foreach ($this->splitText($text) as $word) {
-                        $this->mapPutOrAdd($ret, $word, $song);
-                    }
+                    foreach ($this->splitText($text) as $word)
+                        if($word !== '')
+                            $this->mapDeepPutOrAdd($ret, 'city', $word, $song);
                 }
 
                 return $ret;
@@ -90,9 +96,9 @@ class DbIndexer
                     $song = $row[1];
 
                     // split text and create mapping
-                    foreach ($this->splitText($text) as $word) {
-                        $this->mapPutOrAdd($ret, $word, $song);
-                    }
+                    foreach ($this->splitText($text) as $word)
+                        if($word !== '')
+                            $this->mapDeepPutOrAdd($ret, 'collection', $word, $song);
                 }
 
                 return $ret;
@@ -108,9 +114,9 @@ class DbIndexer
                     $song = $row[1];
 
                     // split text and create mapping
-                    foreach ($this->splitText($text) as $word) {
-                        $this->mapPutOrAdd($ret, $word, $song);
-                    }
+                    foreach ($this->splitText($text) as $word)
+                        if($word !== '')
+                            $this->mapDeepPutOrAdd($ret, 'genre', $word, $song);
                 }
 
                 return $ret;
@@ -118,30 +124,29 @@ class DbIndexer
             'mks_person' => function () {
                 $ret = [];
                 $selects = [
-                    "SELECT strip_punctuation(person.name), song.id FROM (mks_person as person
+                    'composer' => "SELECT strip_punctuation(person.name), song.id FROM (mks_person as person
                                             INNER JOIN mks_x_composer_song x on person.id = x.composer_id
                                             INNER JOIN mks_song song on x.song_id = song.id)",
-                    "SELECT strip_punctuation(person.name), song.id FROM (mks_person as person
+                    'cover_artist' => "SELECT strip_punctuation(person.name), song.id FROM (mks_person as person
                                             INNER JOIN mks_x_cover_artist_song x on person.id = x.cover_artist_id
                                             INNER JOIN mks_song song on x.song_id = song.id)",
-                    "SELECT strip_punctuation(person.name), song.id FROM (mks_person as person
+                    'performer' => "SELECT strip_punctuation(person.name), song.id FROM (mks_person as person
                                             INNER JOIN mks_x_performer_song x on person.id = x.performer_id
                                             INNER JOIN mks_song song on x.song_id = song.id)",
-                    "SELECT strip_punctuation(person.name), song.id FROM (mks_person as person
+                    'writer' => "SELECT strip_punctuation(person.name), song.id FROM (mks_person as person
                                             INNER JOIN mks_x_writer_song x on person.id = x.writer_id
                                             INNER JOIN mks_song song on x.song_id = song.id)"
                 ];
 
-                foreach ($selects as $select) {
+                foreach ($selects as $topic => $select) {
                     foreach ($this->dbConn->query($select)->fetchAll(PDO::FETCH_NUM) as $row) {
                         $text = $row[0];
                         $song = $row[1];
 
                         // split text and create mapping
-                        foreach ($this->splitText($text) as $word) {
-                            if ($word === '') continue;
-                            $this->mapPutOrAdd($ret, $word, $song);
-                        }
+                        foreach ($this->splitText($text) as $word)
+                            if($word !== '')
+                                $this->mapDeepPutOrAdd($ret, $topic, $word, $song);
                     }
                 }
 
@@ -158,9 +163,9 @@ class DbIndexer
                     $song = $row[1];
 
                     // split text and create mapping
-                    foreach ($this->splitText($text) as $word) {
-                        $this->mapPutOrAdd($ret, $word, $song);
-                    }
+                    foreach ($this->splitText($text) as $word)
+                        if($word !== '')
+                            $this->mapDeepPutOrAdd($ret, 'publisher', $word, $song);
                 }
 
                 return $ret;
@@ -176,9 +181,9 @@ class DbIndexer
                     $song = $row[1];
 
                     // split text and create mapping
-                    foreach ($this->splitText($text) as $word) {
-                        $this->mapPutOrAdd($ret, $word, $song);
-                    }
+                    foreach ($this->splitText($text) as $word)
+                        if($word !== '')
+                            $this->mapDeepPutOrAdd($ret, 'source', $word, $song);
                 }
 
                 return $ret;
@@ -186,22 +191,23 @@ class DbIndexer
             'mks_song' => function () {
                 $ret = [];
                 $stm = $this->dbConn->query("SELECT id,
-                    strip_punctuation(name), strip_punctuation(label), strip_punctuation(origin),
-                    strip_punctuation(dedication), strip_punctuation(review), strip_punctuation(addition),
-                    strip_punctuation(copyright_year), strip_punctuation(copyright_remark), strip_punctuation(created_on),
-                    strip_punctuation(publisher_series), strip_punctuation(publisher_number), strip_punctuation(record_number)
+                    strip_punctuation(name) as 'song-name', strip_punctuation(label) as 'song-label',
+                    strip_punctuation(origin) as 'song-origin', strip_punctuation(dedication) as 'song-dedication',
+                    strip_punctuation(review) as 'song-rev', strip_punctuation(addition) as 'song-addition',
+                    strip_punctuation(copyright_year) as 'song-cpr_y', strip_punctuation(copyright_remark) as 'song-cpr_remark',
+                    strip_punctuation(created_on) as 'song-created', strip_punctuation(publisher_series) as 'song-pub_ser',
+                    strip_punctuation(publisher_number) as 'song-pub_nr', strip_punctuation(record_number) as 'song-rec_nr'
                     FROM mks_song");
 
-                foreach ($stm->fetchAll(PDO::FETCH_NUM) as $row) {
-                    $song = $row[0];
+                foreach ($stm->fetchAll(PDO::FETCH_ASSOC) as $row) {
+                    $song = $row['id'];
 
-                    // split texts and create mapping ($i starts at 1 because id is at idx 0)
-                    for ($i = 1; $i < count($row); $i += 1) {
-                        $text = $row[$i];
-                        if ($text === null) continue;
-                        foreach ($this->splitText($text) as $word) {
-                            $this->mapPutOrAdd($ret, $word, $song);
-                        }
+                    foreach($row as $col => $text){
+                        if($text === null or $col === 'id') continue;
+                        // split text and create mapping
+                        foreach ($this->splitText($text) as $word)
+                            if($word !== '')
+                                $this->mapDeepPutOrAdd($ret, $col, $word, $song);
                     }
                 }
 
@@ -220,17 +226,16 @@ class DbIndexer
 
     /**
      * writes the index-data (created by indexTable) into the db
-     * @param array $indexData array of the format [word => [song-id, ...], ...]
+     * @param array $indexData array of the format [word => [song-id => topic, ...], ...]
      */
     public function writeIndex(array $indexData)
     {
-        $stm = $this->dbConn->prepare('INSERT IGNORE INTO mks_word_index VALUES (?, ?)');
-        foreach ($indexData as $word => $songs) {
-            foreach ($songs as $song) {
-                if ($word === '') continue;// skip empty results;
-                $stm->execute([$word, $song]);
-            }
-        }
+        $stm = $this->dbConn->prepare('INSERT IGNORE INTO mks_word_index VALUES (?, ?, ?)');
+
+        foreach ($indexData as $word => $songs)
+            foreach ($songs as $song => $topics)
+                foreach($topics as $topic)
+                    $stm->execute([$word, $song, $topic]);
     }
 
     /**
