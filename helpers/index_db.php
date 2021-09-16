@@ -43,7 +43,7 @@ class DbIndexerExecutor{
 
             $tableIndexData = $this->indexer->indexTable($table);
             if($tableIndexData !== false)
-                $this->indexer->mergeMap($indexData, $tableIndexData);
+                $this->indexer->mapDeepMerge($indexData, $tableIndexData);
         }
 
         $this->logger->log('info', 'writing index');

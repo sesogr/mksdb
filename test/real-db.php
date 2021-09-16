@@ -83,8 +83,8 @@ it('[V1] can search for origin \'Himmelstür\' without \'Kinostar\' (KSD-T-1)', 
             return mb_stripos($r->origin, 'HIMMELSTÜR') !== false && $r->title !== 'Kinostar';
         });
 });
-it('[V2] can search for origin \'Himmelstür\' without "Odeon 0-4756" (KSD-T-1)', function () use ($db) {
-    return hasAtLeastSoManyResultsWhichAllMatchCallbackV2($db, 'Himmelstür -"Odeon 0-4756', 1,
+it('[V1] can search for origin \'Himmelstür\' without "Odeon 0-4756" (KSD-T-1)', function () use ($db) {
+    return hasAtLeastSoManyResultsWhichAllMatchCallbackV1($db, 'Himmelstür -"Odeon 0-4756', 1,
         function (SearchResult $r) {
             return mb_stripos($r->origin, 'HIMMELSTÜR') !== false && $r->title !== 'Kinostar';
         });
