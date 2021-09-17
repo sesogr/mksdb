@@ -1,6 +1,6 @@
 <?php declare(strict_types=1);
 
-require_once __DIR__ . '/../web/lib/testframeworkinatweet.inc.php';
+require_once __DIR__ . '/lib/testframeworkinatweet.inc.php';
 require_once __DIR__ . '/../web/lib/functions.inc.php';
 
 it('can split a search string into phrases and non-phrase particles', function () {
