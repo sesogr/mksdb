@@ -7,6 +7,7 @@ require_once __DIR__ . '/types.inc.php';
 require_once __DIR__ . '/utils.inc.php';
 
 use function Utils\arrayMergeWithCustomResolver;
+use function Utils\substr_count_i;
 
 function addTablePrefixesToJoinParameter(string $query): string
 {
@@ -318,38 +319,54 @@ function gatherSearchResultsWithWildcards(string $search, PDO $db): array {
 function gatherSearchResultsByFields(array $searchFields, PDO $db): array {
     $includedSongs = [];
     $excludedSongs = [];
+    $keywordsPerTopic = [];
+    $excludedKeywordsPerTopic = [];
+    $phrasesPerTopic = [];
+    $excludedPhrasesPerTopic = [];
 
     foreach($searchFields as $field => $value){
         if ($value === null) continue;
         [$keywords, $phrases, $ranges, $excludedKeywords, $excludedPhrases, $excludedRanges] = parseSearch($value);
 
+        $keywordsPerTopic[$field] = $keywords;
+        $excludedKeywordsPerTopic[$field] = $excludedKeywords;
+        $phrasesPerTopic[$field] = $phrases;
+        $excludedPhrasesPerTopic[$field] = $excludedPhrases;
+
         // phrases have to be included into keywords for collectWordMatches
         $keywordsWithPhrases = $keywords;
         foreach($phrases as $phrase)
             $keywordsWithPhrases = array_merge($keywordsWithPhrases, preg_split('[\s+]', $phrase));
-        $excludedKeywordsWithPhrases = $excludedKeywords;
-        foreach($excludedPhrases as $phrase)
-            $excludedKeywordsWithPhrases = array_merge($excludedKeywordsWithPhrases, preg_split('[\s+]', $phrase));
 
         $includedSongs = arrayMergeWithCustomResolver($includedSongs, collectWordMatchesWithTopic($keywordsWithPhrases, $field, $db),
             function($vA, $vB){
                 // return max count (for later scoring)
                 return max($vA, $vB);
         });
-        $excludedSongs = array_merge($excludedSongs, collectWordMatchesWithTopic($excludedKeywordsWithPhrases, $field, $db));
+
+        // exclusions by keyword can be directly filtered out (phrases have to be analysed separately)
+        $excludedSongs = array_merge($excludedSongs, array_keys(collectWordMatchesWithTopic($excludedKeywords, $field, $db)));
     }
 
-    // filter out all excluded songs
-    $songs = array_filter($includedSongs, function ($song) use ($excludedSongs) {//TODO excluded phrases are treated wrong
-        return !in_array($song, array_keys($excludedSongs));
+    // filter out all (keyword) excluded songs
+    $songs = array_filter($includedSongs, function ($song) use ($excludedSongs) {
+        return !in_array($song, $excludedSongs);
     }, ARRAY_FILTER_USE_KEY);
 
-    //TODO scoring
+    $results = [];
+    foreach($songs as $song => $wordMatches){
+        $score = scoreSongWithTopics($song, $keywordsPerTopic, $excludedKeywordsPerTopic,
+            $phrasesPerTopic, $excludedPhrasesPerTopic, $db);
+        if($score->totalScore() > 0)
+            $results[$song] = $score;
+    }
 
-    return getSongInfoMulti(array_keys($songs), $db);
+    $resultIds = filterAndSortResults($results, -1, -1);//TODO maybe implement support for full matches
+
+    return getSongInfoMulti($resultIds, $db);
 }
 
-function collectWordMatchesWithTopic(array $words, string $topic, PDO $dbConn): array {
+function collectWordMatchesWithTopic(array $words, string $topic, PDO $dbConn): array {//TODO not case insensitive
     $ret = [];
     $query = $dbConn->query(sprintf('SELECT song, COUNT(DISTINCT word) AS c FROM mks_word_index WHERE word IN (%s) AND topic = \'%s\' GROUP BY song ORDER BY c DESC;',
         ('\'' . implode('\', \'', $words) . '\''), $topic));
@@ -357,6 +374,183 @@ function collectWordMatchesWithTopic(array $words, string $topic, PDO $dbConn): 
         $ret[$row[0]] = (int)$row[1];
     }
     return $ret;
+}
+
+/**
+ * @param int $song the song id
+ * @param array $keywords included keywords; format [topic => [keyword, ...], ...]
+ * @param array $excludedKeywords excluded keywords; format [topic => [keyword, ...], ...]
+ * @param array $phrases included phrases; format [topic => [phrase, ...], ...]
+ * @param array $excludedPhrases excluded phrases; format [topic => [phrase, ...], ...]
+ * @param PDO $dbConn
+ * @return SearchResultScore
+ */
+function scoreSongWithTopics(int $song, array $keywords, array $excludedKeywords, array $phrases, array $excludedPhrases, PDO $dbConn): SearchResultScore{
+    // map with functions which returns text for scoring for each possible topic
+    $textQueries = [
+        'city' => function(int $id, PDO $dbConn){
+            $stm = $dbConn->prepare('SELECT c.name
+                                            FROM (mks_city c INNER JOIN mks_x_publication_place_song x ON c.id = x.publication_place_id 
+                                                INNER JOIN mks_song s ON s.id = x.song_id) 
+                                            WHERE s.id = ?;');
+            $stm->execute([$id]);
+            return $stm->fetch(PDO::FETCH_NUM)[0];
+        },
+        'collection' => function(int $id, PDO $dbConn){
+            $stm = $dbConn->prepare('SELECT c.name
+                                            FROM (mks_collection c INNER JOIN mks_x_collection_song x ON c.id = x.collection_id 
+                                                INNER JOIN mks_song s ON s.id = x.song_id) 
+                                            WHERE s.id = ?;');
+            $stm->execute([$id]);
+            return $stm->fetch(PDO::FETCH_NUM)[0];
+        },
+        'genre' => function(int $id, PDO $dbConn){
+            $stm = $dbConn->prepare('SELECT g.name
+                                            FROM (mks_genre g INNER JOIN mks_x_genre_song x ON g.id = x.genre_id 
+                                                INNER JOIN mks_song s ON s.id = x.song_id) 
+                                            WHERE s.id = ?;');
+            $stm->execute([$id]);
+            return $stm->fetch(PDO::FETCH_NUM)[0];
+        },
+        'composer' => function(int $id, PDO $dbConn){
+            $stm = $dbConn->prepare('SELECT c.name
+                                            FROM (mks_person c INNER JOIN mks_x_composer_song x ON c.id = x.composer_id 
+                                                INNER JOIN mks_song s ON s.id = x.song_id) 
+                                            WHERE s.id = ?;');
+            $stm->execute([$id]);
+            return $stm->fetch(PDO::FETCH_NUM)[0];
+        },
+        'cover_artist' => function(int $id, PDO $dbConn){
+            $stm = $dbConn->prepare('SELECT c.name
+                                            FROM (mks_person c INNER JOIN mks_x_cover_artist_song x ON c.id = x.cover_artist_id
+                                                INNER JOIN mks_song s ON s.id = x.song_id) 
+                                            WHERE s.id = ?;');
+            $stm->execute([$id]);
+            return $stm->fetch(PDO::FETCH_NUM)[0];
+        },
+        'performer' => function(int $id, PDO $dbConn){
+            $stm = $dbConn->prepare('SELECT p.name
+                                            FROM (mks_person p INNER JOIN mks_x_performer_song x ON p.id = x.performer_id 
+                                                INNER JOIN mks_song s ON s.id = x.song_id) 
+                                            WHERE s.id = ?;');
+            $stm->execute([$id]);
+            return $stm->fetch(PDO::FETCH_NUM)[0];
+        },
+        'writer' => function(int $id, PDO $dbConn){
+            $stm = $dbConn->prepare('SELECT w.name
+                                            FROM (mks_person w INNER JOIN mks_x_writer_song x ON w.id = x.writer_id 
+                                                INNER JOIN mks_song s ON s.id = x.song_id) 
+                                            WHERE s.id = ?;');
+            $stm->execute([$id]);
+            return $stm->fetch(PDO::FETCH_NUM)[0];
+        },
+        'publisher' => function(int $id, PDO $dbConn){
+            $stm = $dbConn->prepare('SELECT p.name
+                                            FROM (mks_publisher p INNER JOIN mks_x_publisher_song x ON p.id = x.publisher_id 
+                                                INNER JOIN mks_song s ON s.id = x.song_id) 
+                                            WHERE s.id = ?;');
+            $stm->execute([$id]);
+            return $stm->fetch(PDO::FETCH_NUM)[0];
+        },
+        'source' => function(int $id, PDO $dbConn){
+            $stm = $dbConn->prepare('SELECT s.name
+                                            FROM (mks_source s INNER JOIN mks_x_source_song x ON s.id = x.source_id 
+                                                INNER JOIN mks_song s ON s.id = x.song_id) 
+                                            WHERE s.id = ?;');
+            $stm->execute([$id]);
+            return $stm->fetch(PDO::FETCH_NUM)[0];
+        },
+        'song-name' => function(int $id, PDO $dbConn){
+            $stm = $dbConn->prepare('SELECT name FROM mks_song WHERE id = ?;');
+            $stm->execute([$id]);
+            return $stm->fetch(PDO::FETCH_NUM)[0];
+        },
+        'song-cpy_y' => function(int $id, PDO $dbConn){
+            $stm = $dbConn->prepare('SELECT copyright_year FROM mks_song WHERE id = ?;');
+            $stm->execute([$id]);
+            return $stm->fetch(PDO::FETCH_NUM)[0];
+        },
+        'song-cpr_remark' => function(int $id, PDO $dbConn){
+            $stm = $dbConn->prepare('SELECT copyright_remark FROM mks_song WHERE id = ?;');
+            $stm->execute([$id]);
+            return $stm->fetch(PDO::FETCH_NUM)[0];
+        },
+        'song-created' => function(int $id, PDO $dbConn){
+            $stm = $dbConn->prepare('SELECT created_on FROM mks_song WHERE id = ?;');
+            $stm->execute([$id]);
+            return $stm->fetch(PDO::FETCH_NUM)[0];
+        },
+        'song-label' => function(int $id, PDO $dbConn){
+            $stm = $dbConn->prepare('SELECT label FROM mks_song WHERE id = ?;');
+            $stm->execute([$id]);
+            return $stm->fetch(PDO::FETCH_NUM)[0];
+        },
+        'song-pub_ser' => function(int $id, PDO $dbConn){
+            $stm = $dbConn->prepare('SELECT publisher_series FROM mks_song WHERE id = ?;');
+            $stm->execute([$id]);
+            return $stm->fetch(PDO::FETCH_NUM)[0];
+        },
+        'song-pub_nr' => function(int $id, PDO $dbConn){
+            $stm = $dbConn->prepare('SELECT publisher_number FROM mks_song WHERE id = ?;');
+            $stm->execute([$id]);
+            return $stm->fetch(PDO::FETCH_NUM)[0];
+        },
+        'song-rec_nr' => function(int $id, PDO $dbConn){
+            $stm = $dbConn->prepare('SELECT record_number FROM mks_song WHERE id = ?;');
+            $stm->execute([$id]);
+            return $stm->fetch(PDO::FETCH_NUM)[0];
+        },
+        'song-origin' => function(int $id, PDO $dbConn){
+            $stm = $dbConn->prepare('SELECT origin FROM mks_song WHERE id = ?;');
+            $stm->execute([$id]);
+            return $stm->fetch(PDO::FETCH_NUM)[0];
+        },
+        'song-dedication' => function(int $id, PDO $dbConn){
+            $stm = $dbConn->prepare('SELECT dedication FROM mks_song WHERE id = ?;');
+            $stm->execute([$id]);
+            return $stm->fetch(PDO::FETCH_NUM)[0];
+        },
+        'song-rev' => function(int $id, PDO $dbConn){
+            $stm = $dbConn->prepare('SELECT review FROM mks_song WHERE id = ?;');
+            $stm->execute([$id]);
+            return $stm->fetch(PDO::FETCH_NUM)[0];
+        },
+        'song-addition' => function(int $id, PDO $dbConn){
+            $stm = $dbConn->prepare('SELECT addition FROM mks_song WHERE id = ?;');
+            $stm->execute([$id]);
+            return $stm->fetch(PDO::FETCH_NUM)[0];
+        }
+    ];
+
+    $score = SearchResultScore::newEmpty();
+    $score->keywordMatchCount = 0;
+
+    // accumulate all topic, so that their queries have to be executed only once
+    $relevantTopics = array_merge(array_keys($keywords), /*array_keys($excludedKeywords),*/ array_keys($phrases), array_keys($excludedPhrases));
+    foreach($relevantTopics as $topic){
+        $text = $textQueries[$topic]($song, $dbConn);
+
+        /* already filtered out in gatherSearchResultsByFields()
+        foreach(($excludedKeywords[$topic] ?? []) as $keyword)
+            if(mb_stripos($text, $keyword, 0, 'UTF-8') !== false)
+                return SearchResultScore::newExcluded();
+        */
+
+        foreach(($excludedPhrases[$topic] ?? []) as $phrase)
+            if($phrase !== '')
+                if(mb_stripos($text, $phrase, 0, 'UTF-8') !== false)
+                    return SearchResultScore::newExcluded();
+
+        foreach(($keywords[$topic] ?? []) as $keyword)
+            if($keyword !== '')
+                $score->keywordMatchCount += substr_count_i($text, $keyword, 'UTF-8');
+
+        foreach(($phrases[$topic] ?? []) as $phrase)
+            if($phrase !== '')
+                $score->phraseMatchCount += substr_count_i($text, $phrase, 'UTF-8');
+    }
+
+    return $score;
 }
 
 /**
