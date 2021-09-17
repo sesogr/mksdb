@@ -188,7 +188,7 @@ function scoreSong(int $songId, array $keywords, array $phrases, array $excluded
     $score->keywordMatchCount = $keywordMatches;
 
     // if all keywords or phrases were matched, the result should be scored higher
-    if($keywordMatches === count($keywords))
+    if($keywordMatches === count($keywords))//TODO this will not work if phrases are included (because their intern words are included in the keywordMatches)
         $score->fullKeywordsMatchCount = $keywordMatches;
     if($score->phraseMatchCount == count($phrases))
         $score->fullPhrasesMatchCount = $score->phraseMatchCount;
@@ -217,6 +217,13 @@ function getSongInfoMulti(array $songs, PDO $dbConn): array {
     return $query->fetchAll(PDO::FETCH_CLASS, SearchResult::class);
 }
 
+/**
+ * @param array $results [songId => score]
+ * @param int $keywordCount count of searched keywords
+ * @param int $phraseCount count of searched phrases
+ * @param bool $preferFullMatches if true and a result has the same keyword-match-count as keywordCount, all results scored lower will be excluded
+ * @return array
+ */
 function trimResults(array $results, int $keywordCount, int $phraseCount, bool $preferFullMatches = true): array {
     arsort($results);
 
