@@ -300,6 +300,7 @@ function gatherSearchResultsByFields(array $searchFields, PDO $db): array {
     $excludedSongs = [];
 
     foreach($searchFields as $field => $value){
+        if ($value === null) continue;
         [$keywords, $phrases, $ranges, $excludedKeywords, $excludedPhrases, $excludedRanges] = parseSearch($value);
 
         // phrases have to be included into keywords for collectWordMatches
