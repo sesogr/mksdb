@@ -482,7 +482,7 @@ function handleCustomResponse(string $operation, string $tableName, ResponseInte
                 'song-cpr_y' => $environment->search['copyrightYear'] ?? null,
                 'publisher' => $environment->search['publisher'] ?? null,
                 'song-origin' => $environment->search['origin'] ?? null,
-                'artist' => $environment->search['artist'] ?? null//TODO what is artist (cover_artist / performer / ...)?
+                'performer' => $environment->search['performer'] ?? null,
             ];
             $searchResults = gatherSearchResultsByFields($searchFields, $db);
         }
