@@ -17,6 +17,7 @@ $db = new PDO(
 );
 
 // for search v2
+//TODO this is red, but the function works; both results of the query have both words somewhere in their data; please review the behaviour of the search (maybe some fields have to be excluded)
 it('[V2] yields one single result for \'Wolfgangsee Rößl\' (KSD-T-6)', function () use ($db) {
     return count(gatherSearchResults('Wolfgangsee Rößl', $db)) === 1;
 });
@@ -90,3 +91,21 @@ it('[V1] can search for origin \'Himmelstür\' without "Odeon 0-4756" (KSD-T-1)'
         });
 });
 //TODO add test for wildcards
+
+// for advanced search
+it('[advanced search] can find results for title => \'blume\'', function () use($db){
+    foreach(gatherSearchResultsByFields(['song-name' => 'blume', 'composer' => '"Kunz Hans"'], $db) as $res)
+        if(mb_stripos($res->title, 'blume', 0, 'UTF-8') === false)
+            return false;
+    return true;
+});
+it('[advanced search] returns exactly one result for title => \'blume\', copyrightYear => \'1931\'', function () use($db){
+    foreach(gatherSearchResultsByFields(['song-name' => 'blume', 'song-cpy_y' => '1931'], $db) as $res)
+        if(mb_stripos($res->title, 'blume', 0, 'UTF-8') === false
+            and stripos($res->copyright_year, '1931') === false)
+            return false;
+    return true;
+});
+it('[advanced search] can find results for title => \'blume\', composer => \'"Kunz Hans"\'', function () use($db){
+    return count(gatherSearchResultsByFields(['song-name' => 'blume', 'composer' => '"Kunz Hans"'], $db)) === 1;
+});
