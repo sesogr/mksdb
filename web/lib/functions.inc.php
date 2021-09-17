@@ -163,12 +163,15 @@ function getSongFullInfo(int $songId, PDO $dbConn): array {
  * @param array $phrases
  * @param array $excludedKeywords
  * @param array $excludedPhrases
- * @param int $keywordMatches
  * @param PDO $dbConn
  * @return SearchResultScore
  */
-function scoreSong(int $songId, array $keywords, array $phrases, array $excludedKeywords, array $excludedPhrases, int $keywordMatches, PDO $dbConn): SearchResultScore {
+function scoreSong(int $songId, array $keywords, array $phrases, array $excludedKeywords, array $excludedPhrases, PDO $dbConn): SearchResultScore {
     $score = SearchResultScore::newEmpty();
+    $score->keywordMatchCount = 0;
+
+    $matchedKeywords = [];
+    $matchedPhrases = [];
 
     // count matching phrases and search for exclusions
     $songInfo = getSongFullInfo($songId, $dbConn);
@@ -181,16 +184,25 @@ function scoreSong(int $songId, array $keywords, array $phrases, array $excluded
             if(mb_stripos($infoPart, $excludedPhrase, 0, 'UTF-8') !== false)
                 return SearchResultScore::newExcluded();
 
-        foreach($phrases as $phrase)
-            if(mb_stripos($infoPart, $phrase, 0, 'UTF-8') !== false)
-                $score->phraseMatchCount += 1;
+        foreach($keywords as $keyword){
+            if(mb_stripos($infoPart, $keyword, 0, 'UTF-8') !== false){
+                array_push($matchedKeywords, $keyword);
+            }
+        }
+
+        foreach($phrases as $phrase) {
+            if (mb_stripos($infoPart, $phrase, 0, 'UTF-8') !== false) {
+                array_push($matchedPhrases, $phrase);
+            }
+        }
     }
 
-    $score->keywordMatchCount = $keywordMatches;
+    $score->keywordMatchCount = count(array_unique($matchedKeywords));
+    $score->phraseMatchCount = count(array_unique($matchedPhrases));
 
     // if all keywords or phrases were matched, the result should be scored higher
-    if($keywordMatches === count($keywords))//TODO this will not work if phrases are included (because their intern words are included in the keywordMatches)
-        $score->fullKeywordsMatchCount = $keywordMatches;
+    if($score->keywordMatchCount === count($keywords))
+        $score->fullKeywordsMatchCount = $score->keywordMatchCount;
     if($score->phraseMatchCount == count($phrases))
         $score->fullPhrasesMatchCount = $score->phraseMatchCount;
 
@@ -229,29 +241,35 @@ function filterAndSortResults(array $results, int $keywordCount, int $phraseCoun
     /* compute minimum score:
         if searched with keywords -> 1 * KEYWORD_MULTIPLIER
         if searched only with phrases -> 1 * PHRASE_MULTIPLIER
-        if one result has a full match (count of matched keywords == keywordCount) -> $keywordCount * KEYWORD_FULL_MATCH_MULTIPLIER
+        if one result has a full match (count of matched keywords == keywordCount)
+            -> $keywordCount * KEYWORD_FULL_MATCH_MULTIPLIER;
+            same for phrases; if bother were matched full by one -> sum of both min-values
     */
 
     $onlyPhrasesUsed = $keywordCount === 0;
-    $minScore = $onlyPhrasesUsed ? SearchResultScore::PHRASE_MULTIPLIER : SearchResultScore::KEYWORD_MULTIPLIER;
-
+    $minScore = 0;
     if($preferFullMatches && !$onlyPhrasesUsed) {
         foreach($results as $id => $score) {
-            if($score->fullPhrasesMatchCount > 0){
-                $minScore = $phraseCount * SearchResultScore::FULL_MATCH_MULTIPLIER * SearchResultScore::PHRASE_MULTIPLIER;
-                break;
-            }
-            if($score->fullKeywordsMatchCount > 0) {
-                $minScore = $keywordCount * SearchResultScore::FULL_MATCH_MULTIPLIER * SearchResultScore::KEYWORD_MULTIPLIER;
-                break;
+            if($score->fullPhrasesMatchCount > 0 and $score->fullKeywordsMatchCount > 0){
+                $minScore = $phraseCount * SearchResultScore::FULL_MATCH_MULTIPLIER * SearchResultScore::PHRASE_MULTIPLIER
+                    + $keywordCount * SearchResultScore::FULL_MATCH_MULTIPLIER * SearchResultScore::KEYWORD_MULTIPLIER;
+                break;// highest possible value
+            }else {
+                if ($score->fullPhrasesMatchCount > 0) {
+                    $minScore = max($minScore, $phraseCount * SearchResultScore::FULL_MATCH_MULTIPLIER * SearchResultScore::PHRASE_MULTIPLIER);
+                }
+                if (!$score->fullKeywordsMatchCount > 0) {
+                    $minScore = max($minScore, $keywordCount * SearchResultScore::FULL_MATCH_MULTIPLIER * SearchResultScore::KEYWORD_MULTIPLIER);
+                }
             }
         }
     }
+    if($minScore === 0)
+        $minScore = $onlyPhrasesUsed ? SearchResultScore::PHRASE_MULTIPLIER : SearchResultScore::KEYWORD_MULTIPLIER;
 
     foreach($results as $id => $score)
         if($score->totalScore() < $minScore)
             unset($results[$id]);
-
 
     // convert $results from [songId => score] to [[songId, score]], then sort by score, then map to [songId]
     $resultsT = [];
@@ -282,7 +300,7 @@ function gatherSearchResults(string $search, PDO $db): array
 
     $resultIds = [];
     foreach($matchedSongs as $song => $matchCount){
-        $score = scoreSong($song, $keywords, $phrases, $excludedKeywords, $excludedPhrases, $matchCount, $db);
+        $score = scoreSong($song, $keywords, $phrases, $excludedKeywords, $excludedPhrases, $db);
         if($score->totalScore() > 0)
             $resultIds[$song] = $score;
     }
@@ -361,7 +379,14 @@ function gatherSearchResultsByFields(array $searchFields, PDO $db): array {
             $results[$song] = $score;
     }
 
-    $resultIds = filterAndSortResults($results, -1, -1);//TODO maybe implement support for full matches
+    $totalKeywordCount = array_reduce($keywordsPerTopic, function(int $sum, array $val){
+        return $sum + count($val);
+    }, 0);
+    $totalPhraseCount = array_reduce($phrasesPerTopic, function(int $sum, array $val){
+        return $sum + count($val);
+    }, 0);
+
+    $resultIds = filterAndSortResults($results, $totalKeywordCount, $totalPhraseCount);
 
     return getSongInfoMulti($resultIds, $db);
 }
@@ -525,10 +550,14 @@ function scoreSongWithTopics(int $song, array $keywords, array $excludedKeywords
     $score = SearchResultScore::newEmpty();
     $score->keywordMatchCount = 0;
 
+    $matchedKeywords = [];
+    $matchedPhrases = [];
+
     // accumulate all topic, so that their queries have to be executed only once
-    $relevantTopics = array_merge(array_keys($keywords), /*array_keys($excludedKeywords),*/ array_keys($phrases), array_keys($excludedPhrases));
+    $relevantTopics = array_unique(array_merge(array_keys($keywords), /*array_keys($excludedKeywords),*/ array_keys($phrases), array_keys($excludedPhrases)));
     foreach($relevantTopics as $topic){
         $text = $textQueries[$topic]($song, $dbConn);
+        if($text === null) continue;
 
         /* already filtered out in gatherSearchResultsByFields()
         foreach(($excludedKeywords[$topic] ?? []) as $keyword)
@@ -541,14 +570,38 @@ function scoreSongWithTopics(int $song, array $keywords, array $excludedKeywords
                 if(mb_stripos($text, $phrase, 0, 'UTF-8') !== false)
                     return SearchResultScore::newExcluded();
 
-        foreach(($keywords[$topic] ?? []) as $keyword)
-            if($keyword !== '')
-                $score->keywordMatchCount += substr_count_i($text, $keyword, 'UTF-8');
+        foreach(($keywords[$topic] ?? []) as $keyword) {
+            if ($keyword !== '') {
+                if (mb_stripos($text, $keyword, 0, 'UTF-8') !== false) {
+                    array_push($matchedKeywords, $keyword);
+                }
+            }
+        }
 
-        foreach(($phrases[$topic] ?? []) as $phrase)
-            if($phrase !== '')
-                $score->phraseMatchCount += substr_count_i($text, $phrase, 'UTF-8');
+        foreach(($phrases[$topic] ?? []) as $phrase) {
+            if ($phrase !== '') {
+                if(mb_stripos($text, $phrase, 0, 'UTF-8') !== false) {
+                    array_push($matchedPhrases, $phrase);
+                }
+            }
+        }
     }
+
+    $score->keywordMatchCount = count(array_unique($matchedKeywords));
+    $score->phraseMatchCount = count(array_unique($matchedPhrases));
+
+    // check for full matches (accumulated over all fields)
+    $totalKeywordCount = array_reduce($keywords, function(int $sum, array $val){
+        return $sum + count($val);
+    }, 0);
+    $totalPhraseCount = array_reduce($phrases, function(int $sum, array $val){
+        return $sum + count($val);
+    }, 0);
+
+    if($totalKeywordCount === $score->keywordMatchCount)
+        $score->fullKeywordsMatchCount = $totalKeywordCount;
+    if($totalPhraseCount === $score->phraseMatchCount)
+        $score->fullPhrasesMatchCount = $totalPhraseCount;
 
     return $score;
 }
