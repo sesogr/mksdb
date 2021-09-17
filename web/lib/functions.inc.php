@@ -222,11 +222,9 @@ function getSongInfoMulti(array $songs, PDO $dbConn): array {
  * @param int $keywordCount count of searched keywords
  * @param int $phraseCount count of searched phrases
  * @param bool $preferFullMatches if true and a result has the same keyword-match-count as keywordCount, all results scored lower will be excluded
- * @return array
+ * @return array [songId] (sorted by score)
  */
-function trimResults(array $results, int $keywordCount, int $phraseCount, bool $preferFullMatches = true): array {
-    arsort($results);
-
+function filterAndSortResults(array $results, int $keywordCount, int $phraseCount, bool $preferFullMatches = true): array {
     /* compute minimum score:
         if searched with keywords -> 1 * KEYWORD_MULTIPLIER
         if searched only with phrases -> 1 * PHRASE_MULTIPLIER
@@ -253,7 +251,22 @@ function trimResults(array $results, int $keywordCount, int $phraseCount, bool $
         if($score->totalScore() < $minScore)
             unset($results[$id]);
 
-    return $results;
+
+    // convert $results from [songId => score] to [[songId, score]], then sort by score, then map to [songId]
+    $resultsT = [];
+    foreach($results as $song => $score)
+        array_push($resultsT, [$song, $score]);
+    usort($resultsT, function($vA, $vB) {
+        $sA = $vA[1]->totalScore();
+        $sB = $vB[1]->totalScore();
+
+        if($sA === $sB) return 0;
+        return $sA < $sB ? -1 : 1;
+    });
+
+    return array_map(function($v){
+        return $v[0];
+    }, $resultsT);
 }
 
 function gatherSearchResults(string $search, PDO $db): array
@@ -273,9 +286,9 @@ function gatherSearchResults(string $search, PDO $db): array
             $resultIds[$song] = $score;
     }
 
-    $resultIds = trimResults($resultIds, count($keywords), count($phrases));
+    $resultIds = filterAndSortResults($resultIds, count($keywords), count($phrases));
 
-    return getSongInfoMulti(array_keys($resultIds), $db);
+    return getSongInfoMulti($resultIds, $db);
 }
 
 /*
