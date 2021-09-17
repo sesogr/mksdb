@@ -1,8 +1,10 @@
 <?php declare(strict_types=1);
+
 require_once __DIR__ . '/../web/lib/testframeworkinatweet.inc.php';
 require_once __DIR__ . '/../web/lib/functions.inc.php';
 require_once __DIR__ . '/../web/lib/test-functions.inc.php';
 require_once __DIR__ . '/../web/lib/types.inc.php';
+
 $config = include __DIR__ . '/../web/config.inc.php';
 $db = new PDO(
     sprintf(

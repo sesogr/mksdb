@@ -1,4 +1,5 @@
 <?php declare(strict_types=1);
+
 use Nyholm\Psr7\Factory\Psr17Factory;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
@@ -7,7 +8,31 @@ require_once __DIR__ . '/types.inc.php';
 require_once __DIR__ . '/utils.inc.php';
 
 use function Utils\arrayMergeWithCustomResolver;
-use function Utils\substr_count_i;
+
+// #### V1 ###
+/*
+ * uses slow search-query (with 'LIKE') which supports wildcards
+ */
+function gatherSearchResultsWithWildcards(string $search, PDO $db): array {
+    [$keywords, $phrases, $ranges, $excludedKeywords, $excludedPhrases, $excludedRanges] = parseSearch($search);
+    // phrases have to be included into keywords for buildSongMatches
+    $allKeywords = $keywords;
+    foreach($phrases as $phrase)
+        array_push($allKeywords, $phrase);
+    $allExcludedKeywords = $excludedKeywords;
+    foreach($excludedPhrases as $phrase)
+        array_push($allExcludedKeywords, $phrase);
+
+    $relevanceMap = buildSongMatches($db, $allKeywords);
+    foreach (buildSongMatches($db, $allExcludedKeywords) as $songId => $exclusionMatches) {
+        unset($relevanceMap[$songId]);
+    }
+    $andMatches = array_filter($relevanceMap, function ($r) use ($keywords) {
+        return $r === count($keywords);
+    });
+
+    return getSongInfoMulti(array_keys(count($andMatches) > 0 ? $andMatches : $relevanceMap), $db);
+}
 
 function addTablePrefixesToJoinParameter(string $query): string
 {
@@ -101,6 +126,30 @@ function buildSongMatches(PDO $db, array $keywords): array
     return $matches;
 }
 
+// #### V2 ####
+
+function gatherSearchResults(string $search, PDO $db): array
+{
+    [$keywords, $phrases, $ranges, $excludedKeywords, $excludedPhrases, $excludedRanges] = parseSearch($search);
+    // phrases have to be included into keywords for collectWordMatches
+    $keywordsWithPhrases = $keywords;
+    foreach($phrases as $phrase)
+        $keywordsWithPhrases = array_merge($keywordsWithPhrases, preg_split('[\s+]', $phrase));
+
+    $matchedSongs = collectWordMatches($keywordsWithPhrases, $db);
+
+    $resultIds = [];
+    foreach($matchedSongs as $song => $matchCount){
+        $score = scoreSong($song, $keywords, $phrases, $excludedKeywords, $excludedPhrases, $db);
+        if($score->totalScore() > 0)
+            $resultIds[$song] = $score;
+    }
+
+    $resultIds = filterAndSortResults($resultIds, count($keywords), count($phrases));
+
+    return getSongInfoMulti($resultIds, $db);
+}
+
 /**
  * @param array $words array of keywords
  * @param PDO $dbConn db connection
@@ -156,6 +205,27 @@ function getSongFullInfo(int $songId, PDO $dbConn): array {
     return $ret;
 }
 
+function getSongInfoMulti(array $songs, PDO $dbConn): array {
+    if(count($songs) === 0) return [];
+
+    $query = $dbConn->query(sprintf("
+                select
+                    a.id,
+                    a.name title,
+                    concat_ws('', d.name, b.annotation) composer,
+                    concat_ws('', e.name, c.annotation) writer,
+                    a.copyright_year,
+                    a.origin
+                from mks_song a
+                left join mks_x_composer_song b on a.id = b.song_id and b.position = 1
+                left join mks_x_writer_song c on a.id = c.song_id and c.position = 1
+                left join mks_person d on d.id = b.composer_id
+                left join mks_person e on e.id = c.writer_id
+                where a.id in (%s)",
+        '\'' . implode('\', \'', $songs) . '\''));
+    return $query->fetchAll(PDO::FETCH_CLASS, SearchResult::class);
+}
+
 /**
  * computes the score for a song and the requested query
  * @param int $songId
@@ -207,27 +277,6 @@ function scoreSong(int $songId, array $keywords, array $phrases, array $excluded
         $score->fullPhrasesMatchCount = $score->phraseMatchCount;
 
     return $score;
-}
-
-function getSongInfoMulti(array $songs, PDO $dbConn): array {
-    if(count($songs) === 0) return [];
-
-    $query = $dbConn->query(sprintf("
-                select
-                    a.id,
-                    a.name title,
-                    concat_ws('', d.name, b.annotation) composer,
-                    concat_ws('', e.name, c.annotation) writer,
-                    a.copyright_year,
-                    a.origin
-                from mks_song a
-                left join mks_x_composer_song b on a.id = b.song_id and b.position = 1
-                left join mks_x_writer_song c on a.id = c.song_id and c.position = 1
-                left join mks_person d on d.id = b.composer_id
-                left join mks_person e on e.id = c.writer_id
-                where a.id in (%s)",
-        '\'' . implode('\', \'', $songs) . '\''));
-    return $query->fetchAll(PDO::FETCH_CLASS, SearchResult::class);
 }
 
 /**
@@ -288,51 +337,7 @@ function filterAndSortResults(array $results, int $keywordCount, int $phraseCoun
     }, $resultsT);
 }
 
-function gatherSearchResults(string $search, PDO $db): array
-{
-    [$keywords, $phrases, $ranges, $excludedKeywords, $excludedPhrases, $excludedRanges] = parseSearch($search);
-    // phrases have to be included into keywords for collectWordMatches
-    $keywordsWithPhrases = $keywords;
-    foreach($phrases as $phrase)
-        $keywordsWithPhrases = array_merge($keywordsWithPhrases, preg_split('[\s+]', $phrase));
-
-    $matchedSongs = collectWordMatches($keywordsWithPhrases, $db);
-
-    $resultIds = [];
-    foreach($matchedSongs as $song => $matchCount){
-        $score = scoreSong($song, $keywords, $phrases, $excludedKeywords, $excludedPhrases, $db);
-        if($score->totalScore() > 0)
-            $resultIds[$song] = $score;
-    }
-
-    $resultIds = filterAndSortResults($resultIds, count($keywords), count($phrases));
-
-    return getSongInfoMulti($resultIds, $db);
-}
-
-/*
- * uses slow search-query (with 'LIKE') which supports wildcards
- */
-function gatherSearchResultsWithWildcards(string $search, PDO $db): array {
-    [$keywords, $phrases, $ranges, $excludedKeywords, $excludedPhrases, $excludedRanges] = parseSearch($search);
-    // phrases have to be included into keywords for buildSongMatches
-    $allKeywords = $keywords;
-    foreach($phrases as $phrase)
-        array_push($allKeywords, $phrase);
-    $allExcludedKeywords = $excludedKeywords;
-    foreach($excludedPhrases as $phrase)
-        array_push($allExcludedKeywords, $phrase);
-
-    $relevanceMap = buildSongMatches($db, $allKeywords);
-    foreach (buildSongMatches($db, $allExcludedKeywords) as $songId => $exclusionMatches) {
-        unset($relevanceMap[$songId]);
-    }
-    $andMatches = array_filter($relevanceMap, function ($r) use ($keywords) {
-        return $r === count($keywords);
-    });
-
-    return getSongInfoMulti(array_keys(count($andMatches) > 0 ? $andMatches : $relevanceMap), $db);
-}
+// #### advanced search ####
 
 function gatherSearchResultsByFields(array $searchFields, PDO $db): array {
     $includedSongs = [];
@@ -391,7 +396,7 @@ function gatherSearchResultsByFields(array $searchFields, PDO $db): array {
     return getSongInfoMulti($resultIds, $db);
 }
 
-function collectWordMatchesWithTopic(array $words, string $topic, PDO $dbConn): array {//TODO not case insensitive
+function collectWordMatchesWithTopic(array $words, string $topic, PDO $dbConn): array {
     $ret = [];
     $query = $dbConn->query(sprintf('SELECT song, COUNT(DISTINCT word) AS c FROM mks_word_index WHERE word IN (%s) AND topic = \'%s\' GROUP BY song ORDER BY c DESC;',
         ('\'' . implode('\', \'', $words) . '\''), $topic));
@@ -606,6 +611,8 @@ function scoreSongWithTopics(int $song, array $keywords, array $excludedKeywords
     return $score;
 }
 
+// #### helpers ####
+
 /**
  * splits up the search-query into keywords, phrases, ranges and their excluded counterparts
  * @param string $search
@@ -687,6 +694,8 @@ function splitRanges(string $search): array
         [],
     ];
 }
+
+// #### request handlers ####
 
 function handleCustomRequest(string $operation, string $tableName, ServerRequestInterface $request, $environment): ?ServerRequestInterface
 {
