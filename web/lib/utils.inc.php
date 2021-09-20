@@ -84,3 +84,14 @@ function arrayMergeWithCustomResolver(array $a, array $b, callable $resolver): a
     }
     return $merged;
 }
+
+/**
+ * counts the occurrences of the needle in the haystack case-insensitively
+ * @param string $haystack
+ * @param string $needle
+ * @param string $encoding encoding for mb_* functions
+ * @return int
+ */
+function substr_count_i(string $haystack, string $needle, string $encoding): int {
+    return mb_substr_count(mb_strtolower($haystack, $encoding), mb_strtolower($needle, $encoding), $encoding);
+}
