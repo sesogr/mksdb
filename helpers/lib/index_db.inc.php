@@ -21,15 +21,25 @@ class DbIndexer
     public function clearIndex()
     {
         $this->dbConn->exec('DROP TABLE IF EXISTS ' . self::INDEX_NAME);
-        $this->dbConn->exec(sprintf('CREATE TABLE %s (
-                                word text         not null,
-                                song int unsigned not null,
-                                topic text        not null,
-                                unique (word, song, topic),
-                                constraint %1$s_ibfk_1
-                                foreign key (song) references mks_song (id)
-                                on update cascade on delete cascade
-                            );', self::INDEX_NAME));
+        $this->dbConn->exec(
+            sprintf(
+                <<<SQL
+                    CREATE TABLE %s (
+                        word varchar(255) not null,
+                        song int unsigned not null,
+                        topic enum(
+                            'city', 'publisher', 'song-name', 'source', 'genre', 'song-addition', 'song-origin', 'collection',
+                            'performer', 'song-rev', 'song-cpr_remark', 'song-rec_nr', 'song-dedication', 'composer', 'writer',
+                            'cover_artist', 'song-label', 'song-created', 'song-pub_ser', 'song-pub_nr', 'song-cpr_y'
+                            ) not null,
+                        unique (word, song, topic),
+                        foreign key (song) references mks_song (id)
+                        on update cascade on delete cascade
+                    );
+                    SQL,
+                self::INDEX_NAME
+            )
+        );
     }
 
     public function listTables(): array
