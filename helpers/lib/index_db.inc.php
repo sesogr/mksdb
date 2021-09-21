@@ -257,6 +257,8 @@ class DbIndexer
      */
     public function splitText(string $text): array
     {
-        return array_values(array_filter(preg_split('<[^\\pN\\pL]+>u', $text)));
+        return array_values(array_filter(preg_split('<[^\\pN\\pL]+>u', $text), function($s) {
+            return strlen($s) > 2;
+        }));
     }
 }
