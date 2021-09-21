@@ -28,14 +28,14 @@ class DbIndexer
                         word varchar(255) not null,
                         reverse varchar(255) not null,
                         song int unsigned not null,
-                        topic enum(
+                        topics set(
                             'city', 'publisher', 'song-name', 'source', 'genre', 'song-addition', 'song-origin', 'collection',
                             'performer', 'song-rev', 'song-cpr_remark', 'song-rec_nr', 'song-dedication', 'composer', 'writer',
                             'cover_artist', 'song-label', 'song-created', 'song-pub_ser', 'song-pub_nr', 'song-cpr_y'
                             ) not null,
                         index (word),
                         index (reverse),
-                        unique (word, song, topic),
+                        unique (word, song, topics),
                         foreign key (song) references mks_song (id)
                         on update cascade on delete cascade
                     );
@@ -247,18 +247,15 @@ class DbIndexer
     public function writeIndex(array $indexData)
     {
         $stm = $this->dbConn->prepare(
-            'INSERT IGNORE INTO mks_word_index (word, reverse, song, topic) VALUES (?, ?, ?, ?)'
+            'INSERT IGNORE INTO mks_word_index (word, reverse, song, topics) VALUES (?, ?, ?, ?)'
         );
-
-        $i = 0;
         $count = count($indexData);
-        foreach ($indexData as $word => $songs) {
-            foreach ($songs as $song => $topics) {
-                foreach ($topics as $topic)
-                    $stm->execute([$word, strrev($word), $song, $topic]);
+        foreach (array_keys($indexData) as $k => $word) {
+            $reverse = implode('', array_reverse(preg_split('<>u', $word)));
+            foreach ($indexData[$word] as $song => $topics) {
+                $stm->execute([$word, $reverse, $song, implode(',', array_keys($topics))]);
             }
-            $i++;
-            $this->logger->log('info', sprintf("%3.1f%% Finished writing “%s”", $i / $count * 100, $word));
+            $this->logger->log('info', sprintf("%3.1f%% Finished writing “%s”", $k / $count * 100, $word));
         }
     }
 

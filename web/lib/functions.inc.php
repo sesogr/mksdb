@@ -398,7 +398,7 @@ function gatherSearchResultsByFields(array $searchFields, PDO $db): array {
 
 function collectWordMatchesWithTopic(array $words, string $topic, PDO $dbConn): array {
     $ret = [];
-    $query = $dbConn->query(sprintf('SELECT song, COUNT(DISTINCT word) AS c FROM mks_word_index WHERE word IN (%s) AND topic = \'%s\' GROUP BY song ORDER BY c DESC;',
+    $query = $dbConn->query(sprintf('SELECT song, COUNT(DISTINCT word) AS c FROM mks_word_index WHERE word IN (%s) AND find_in_set(\'%s\', topics) > 0 GROUP BY song ORDER BY c DESC;',
         ('\'' . implode('\', \'', $words) . '\''), $topic));
     foreach ($query->fetchAll(PDO::FETCH_NUM) as $row){
         $ret[$row[0]] = (int)$row[1];
