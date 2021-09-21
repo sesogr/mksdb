@@ -2,8 +2,6 @@
 
 require_once __DIR__ . "/lib/index_db.inc.php";
 
-use function Utils\mapDeepMerge;
-
 class DbIndexerExecutor{
 
     private $logger;
@@ -42,10 +40,7 @@ class DbIndexerExecutor{
         $indexData = [];
         foreach($tablesToIndex as $table) {
             $this->logger->log('info', "indexing table $table");
-
-            $tableIndexData = $this->indexer->indexTable($table);
-            if($tableIndexData !== false)
-                mapDeepMerge($indexData, $tableIndexData);
+            $this->indexer->indexTable($table, $indexData);
         }
 
         $this->logger->log('info', 'writing index');

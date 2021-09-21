@@ -3,8 +3,6 @@
 include_once __DIR__ . "/SubscribableLogger.inc.php";
 require_once __DIR__ . '/../../web/lib/utils.inc.php';
 
-use function Utils\mapDeepPutOrAdd;
-
 class DbIndexer
 {
 
@@ -35,7 +33,7 @@ class DbIndexer
                             ) not null,
                         index (word),
                         index (reverse),
-                        unique (word, song, topics),
+                        unique (word, song),
                         foreign key (song) references mks_song (id)
                         on update cascade on delete cascade
                     );
@@ -73,7 +71,7 @@ class DbIndexer
      * @param string $table
      * @return false|mixed
      */
-    function indexTable(string $table)
+    function indexTable(string $table, array &$index)
     {
         /*
          * possible topics: city, collection, genre, composer, cover_artist, performer, writer, publisher, source,
@@ -83,8 +81,7 @@ class DbIndexer
 
         // map functions to tables; function returns: [word => [song-id => topic, ...], ...]
         $indexers = [
-            'mks_city' => function () {
-                $ret = [];
+            'mks_city' => function () use (&$index) {
                 $stm = $this->dbConn->query("SELECT city.name, song.id FROM (mks_city as city
                                             INNER JOIN mks_x_publication_place_song x on city.id = x.publication_place_id
                                             INNER JOIN mks_song song on x.song_id = song.id)");
@@ -96,13 +93,12 @@ class DbIndexer
                     // split text and create mapping
                     foreach ($this->splitText($text) as $word)
                         if($word !== '')
-                            mapDeepPutOrAdd($ret, 'city', $word, $song);
+                            $index[mb_strtolower($word)][$song]['city'] = true;
                 }
 
-                return $ret;
+                return $index;
             },
-            'mks_collection' => function () {
-                $ret = [];
+            'mks_collection' => function () use (&$index) {
                 $stm = $this->dbConn->query("SELECT coll.name, song.id FROM (mks_collection as coll
                                             INNER JOIN mks_x_collection_song x on coll.id = x.collection_id
                                             INNER JOIN mks_song song on x.song_id = song.id)");
@@ -114,13 +110,12 @@ class DbIndexer
                     // split text and create mapping
                     foreach ($this->splitText($text) as $word)
                         if($word !== '')
-                            mapDeepPutOrAdd($ret, 'collection', $word, $song);
+                            $index[mb_strtolower($word)][$song]['collection'] = true;
                 }
 
-                return $ret;
+                return $index;
             },
-            'mks_genre' => function () {
-                $ret = [];
+            'mks_genre' => function () use (&$index) {
                 $stm = $this->dbConn->query("SELECT genre.name, song.id FROM (mks_genre as genre
                                             INNER JOIN mks_x_genre_song x on genre.id = x.genre_id
                                             INNER JOIN mks_song song on x.song_id = song.id)");
@@ -132,13 +127,12 @@ class DbIndexer
                     // split text and create mapping
                     foreach ($this->splitText($text) as $word)
                         if($word !== '')
-                            mapDeepPutOrAdd($ret, 'genre', $word, $song);
+                            $index[mb_strtolower($word)][$song]['genre'] = true;
                 }
 
-                return $ret;
+                return $index;
             },
-            'mks_person' => function () {
-                $ret = [];
+            'mks_person' => function () use (&$index) {
                 $selects = [
                     'composer' => "SELECT person.name, song.id FROM (mks_person as person
                                             INNER JOIN mks_x_composer_song x on person.id = x.composer_id
@@ -162,14 +156,13 @@ class DbIndexer
                         // split text and create mapping
                         foreach ($this->splitText($text) as $word)
                             if($word !== '')
-                                mapDeepPutOrAdd($ret, $topic, $word, $song);
+                                $index[mb_strtolower($word)][$song][$topic] = true;
                     }
                 }
 
-                return $ret;
+                return $index;
             },
-            'mks_publisher' => function () {
-                $ret = [];
+            'mks_publisher' => function () use (&$index) {
                 $stm = $this->dbConn->query("SELECT publ.name, song.id FROM (mks_publisher as publ
                                             INNER JOIN mks_x_publisher_song x on publ.id = x.publisher_id
                                             INNER JOIN mks_song song on x.song_id = song.id)");
@@ -181,13 +174,12 @@ class DbIndexer
                     // split text and create mapping
                     foreach ($this->splitText($text) as $word)
                         if($word !== '')
-                            mapDeepPutOrAdd($ret, 'publisher', $word, $song);
+                            $index[mb_strtolower($word)][$song]['publisher'] = true;
                 }
 
-                return $ret;
+                return $index;
             },
-            'mks_source' => function () {
-                $ret = [];
+            'mks_source' => function () use (&$index) {
                 $stm = $this->dbConn->query("SELECT source.name, song.id FROM (mks_source as source
                                             INNER JOIN mks_x_source_song x on source.id = x.source_id
                                             INNER JOIN mks_song song on x.song_id = song.id)");
@@ -199,13 +191,12 @@ class DbIndexer
                     // split text and create mapping
                     foreach ($this->splitText($text) as $word)
                         if($word !== '')
-                            mapDeepPutOrAdd($ret, 'source', $word, $song);
+                            $index[mb_strtolower($word)][$song]['source'] = true;
                 }
 
-                return $ret;
+                return $index;
             },
-            'mks_song' => function () {
-                $ret = [];
+            'mks_song' => function () use (&$index) {
                 $stm = $this->dbConn->query("SELECT id,
                     name as 'song-name', label as 'song-label',
                     origin as 'song-origin', dedication as 'song-dedication',
@@ -223,11 +214,11 @@ class DbIndexer
                         // split text and create mapping
                         foreach ($this->splitText($text) as $word)
                             if($word !== '')
-                                mapDeepPutOrAdd($ret, $col, $word, $song);
+                                $index[mb_strtolower($word)][$song][$col] = true;
                     }
                 }
 
-                return $ret;
+                return $index;
             }
         ];
 
