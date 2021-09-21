@@ -26,12 +26,15 @@ class DbIndexer
                 <<<SQL
                     CREATE TABLE %s (
                         word varchar(255) not null,
+                        reverse varchar(255) not null,
                         song int unsigned not null,
                         topic enum(
                             'city', 'publisher', 'song-name', 'source', 'genre', 'song-addition', 'song-origin', 'collection',
                             'performer', 'song-rev', 'song-cpr_remark', 'song-rec_nr', 'song-dedication', 'composer', 'writer',
                             'cover_artist', 'song-label', 'song-created', 'song-pub_ser', 'song-pub_nr', 'song-cpr_y'
                             ) not null,
+                        index (word),
+                        index (reverse),
                         unique (word, song, topic),
                         foreign key (song) references mks_song (id)
                         on update cascade on delete cascade
@@ -243,12 +246,20 @@ class DbIndexer
      */
     public function writeIndex(array $indexData)
     {
-        $stm = $this->dbConn->prepare('INSERT IGNORE INTO mks_word_index VALUES (?, ?, ?)');
+        $stm = $this->dbConn->prepare(
+            'INSERT IGNORE INTO mks_word_index (word, reverse, song, topic) VALUES (?, ?, ?, ?)'
+        );
 
-        foreach ($indexData as $word => $songs)
-            foreach ($songs as $song => $topics)
-                foreach($topics as $topic)
-                    $stm->execute([$word, $song, $topic]);
+        $i = 0;
+        $count = count($indexData);
+        foreach ($indexData as $word => $songs) {
+            foreach ($songs as $song => $topics) {
+                foreach ($topics as $topic)
+                    $stm->execute([$word, strrev($word), $song, $topic]);
+            }
+            $i++;
+            $this->logger->log('info', sprintf("%3.1f%% Finished writing “%s”", $i / $count * 100, $word));
+        }
     }
 
     /**
@@ -258,6 +269,8 @@ class DbIndexer
      */
     public function splitText(string $text): array
     {
-        return array_values(array_filter(preg_split('<\\PL+>u', $text)));
+        return array_values(array_filter(preg_split('<\\PL+>u', $text), function($s) {
+            return strlen($s) > 2;
+        }));
     }
 }
