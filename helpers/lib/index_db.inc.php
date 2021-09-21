@@ -242,7 +242,7 @@ class DbIndexer
         );
         $count = count($indexData);
         foreach (array_keys($indexData) as $k => $word) {
-            $reverse = implode('', array_reverse(preg_split('<>u', $word)));
+            $reverse = implode('', array_reverse(preg_split('<>u', strval($word))));
             foreach ($indexData[$word] as $song => $topics) {
                 $stm->execute([$word, $reverse, $song, implode(',', array_keys($topics))]);
             }
@@ -257,7 +257,7 @@ class DbIndexer
      */
     public function splitText(string $text): array
     {
-        return array_values(array_filter(preg_split('<\\PL+>u', $text), function($s) {
+        return array_values(array_filter(preg_split('<[^\\pN\\pL]+>u', $text), function($s) {
             return strlen($s) > 2;
         }));
     }
