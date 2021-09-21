@@ -82,7 +82,7 @@ class DbIndexer
         $indexers = [
             'mks_city' => function () {
                 $ret = [];
-                $stm = $this->dbConn->query("SELECT strip_punctuation(city.name), song.id FROM (mks_city as city
+                $stm = $this->dbConn->query("SELECT city.name, song.id FROM (mks_city as city
                                             INNER JOIN mks_x_publication_place_song x on city.id = x.publication_place_id
                                             INNER JOIN mks_song song on x.song_id = song.id)");
 
@@ -100,7 +100,7 @@ class DbIndexer
             },
             'mks_collection' => function () {
                 $ret = [];
-                $stm = $this->dbConn->query("SELECT strip_punctuation(coll.name), song.id FROM (mks_collection as coll
+                $stm = $this->dbConn->query("SELECT coll.name, song.id FROM (mks_collection as coll
                                             INNER JOIN mks_x_collection_song x on coll.id = x.collection_id
                                             INNER JOIN mks_song song on x.song_id = song.id)");
 
@@ -118,7 +118,7 @@ class DbIndexer
             },
             'mks_genre' => function () {
                 $ret = [];
-                $stm = $this->dbConn->query("SELECT strip_punctuation(genre.name), song.id FROM (mks_genre as genre
+                $stm = $this->dbConn->query("SELECT genre.name, song.id FROM (mks_genre as genre
                                             INNER JOIN mks_x_genre_song x on genre.id = x.genre_id
                                             INNER JOIN mks_song song on x.song_id = song.id)");
 
@@ -137,16 +137,16 @@ class DbIndexer
             'mks_person' => function () {
                 $ret = [];
                 $selects = [
-                    'composer' => "SELECT strip_punctuation(person.name), song.id FROM (mks_person as person
+                    'composer' => "SELECT person.name, song.id FROM (mks_person as person
                                             INNER JOIN mks_x_composer_song x on person.id = x.composer_id
                                             INNER JOIN mks_song song on x.song_id = song.id)",
-                    'cover_artist' => "SELECT strip_punctuation(person.name), song.id FROM (mks_person as person
+                    'cover_artist' => "SELECT person.name, song.id FROM (mks_person as person
                                             INNER JOIN mks_x_cover_artist_song x on person.id = x.cover_artist_id
                                             INNER JOIN mks_song song on x.song_id = song.id)",
-                    'performer' => "SELECT strip_punctuation(person.name), song.id FROM (mks_person as person
+                    'performer' => "SELECT person.name, song.id FROM (mks_person as person
                                             INNER JOIN mks_x_performer_song x on person.id = x.performer_id
                                             INNER JOIN mks_song song on x.song_id = song.id)",
-                    'writer' => "SELECT strip_punctuation(person.name), song.id FROM (mks_person as person
+                    'writer' => "SELECT person.name, song.id FROM (mks_person as person
                                             INNER JOIN mks_x_writer_song x on person.id = x.writer_id
                                             INNER JOIN mks_song song on x.song_id = song.id)"
                 ];
@@ -167,7 +167,7 @@ class DbIndexer
             },
             'mks_publisher' => function () {
                 $ret = [];
-                $stm = $this->dbConn->query("SELECT strip_punctuation(publ.name), song.id FROM (mks_publisher as publ
+                $stm = $this->dbConn->query("SELECT publ.name, song.id FROM (mks_publisher as publ
                                             INNER JOIN mks_x_publisher_song x on publ.id = x.publisher_id
                                             INNER JOIN mks_song song on x.song_id = song.id)");
 
@@ -185,7 +185,7 @@ class DbIndexer
             },
             'mks_source' => function () {
                 $ret = [];
-                $stm = $this->dbConn->query("SELECT strip_punctuation(source.name), song.id FROM (mks_source as source
+                $stm = $this->dbConn->query("SELECT source.name, song.id FROM (mks_source as source
                                             INNER JOIN mks_x_source_song x on source.id = x.source_id
                                             INNER JOIN mks_song song on x.song_id = song.id)");
 
@@ -204,12 +204,12 @@ class DbIndexer
             'mks_song' => function () {
                 $ret = [];
                 $stm = $this->dbConn->query("SELECT id,
-                    strip_punctuation(name) as 'song-name', strip_punctuation(label) as 'song-label',
-                    strip_punctuation(origin) as 'song-origin', strip_punctuation(dedication) as 'song-dedication',
-                    strip_punctuation(review) as 'song-rev', strip_punctuation(addition) as 'song-addition',
-                    strip_punctuation(copyright_year) as 'song-cpr_y', strip_punctuation(copyright_remark) as 'song-cpr_remark',
-                    strip_punctuation(created_on) as 'song-created', strip_punctuation(publisher_series) as 'song-pub_ser',
-                    strip_punctuation(publisher_number) as 'song-pub_nr', strip_punctuation(record_number) as 'song-rec_nr'
+                    name as 'song-name', label as 'song-label',
+                    origin as 'song-origin', dedication as 'song-dedication',
+                    review as 'song-rev', addition as 'song-addition',
+                    copyright_year as 'song-cpr_y', copyright_remark as 'song-cpr_remark',
+                    created_on as 'song-created', publisher_series as 'song-pub_ser',
+                    publisher_number as 'song-pub_nr', record_number as 'song-rec_nr'
                     FROM mks_song");
 
                 foreach ($stm->fetchAll(PDO::FETCH_ASSOC) as $row) {
@@ -258,6 +258,6 @@ class DbIndexer
      */
     public function splitText(string $text): array
     {
-        return preg_split('[\s+]', trim($text));
+        return array_values(array_filter(preg_split('<\\PL+>u', $text)));
     }
 }

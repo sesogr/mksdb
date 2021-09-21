@@ -29,8 +29,10 @@ it('splits words correctly', function() use($indexer){
     $expectation = ['foo', 'bar', 'baz'];
     return $result === $expectation;
 });
+it('splits words Unicode-aware', function() use($indexer){
+    return $indexer->splitText("— foo bar   \n„baz”") === ['foo', 'bar', 'baz'];
+});
 
 it('lists all tables which should be indexed', function () use ($indexer) {
     return $indexer->listTables() == ['mks_city', 'mks_collection', 'mks_genre', 'mks_person', 'mks_publisher', 'mks_song', 'mks_source'];
 });
-
