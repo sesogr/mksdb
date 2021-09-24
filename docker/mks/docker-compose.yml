@@ -1,23 +1,10 @@
 version: "3.9"
 
-networks:
-  lnet:
-    name: "lnet"
-    driver: "bridge"
-    internal: true
-  inet:
-    name: "inet"
-    driver: "bridge"
-    internal: false
-
 services:
   mksdb-mariadb:
     image: "mariadb"
-    networks:
-      - inet
-      - lnet
     ports:
-      - "3307:3306"
+      - "11006:3306"
     environment:
       - MYSQL_DATABASE=schlager
       - MYSQL_USER=schlager
@@ -30,12 +17,9 @@ services:
   mksdb-php:
     build:
       context: .
-    networks:
-      - lnet
-      - inet
     ports:
-      - "8081:80"
-      - "8050:8050"
+      - "11080:80"
     volumes:
-      - "../:/var/www/proj"
-      - "../web:/var/www/html"
+      - "../../:/var/www/priv"
+      - "../../app-dist:/var/www/html/schlager"
+      - "../../web:/var/www/html/schlager/api"

@@ -7,6 +7,7 @@ return [
     'username' => 'schlager',
     'password' => 'zorofzoftumev',
     'database' => 'schlager',
+    'basePath' => '/schlager/api/',
     'middlewares' => 'authorization,cors,customization',
     'authorization.tableHandler' => 'preventMutationOperations',
     'customization.beforeHandler' => 'handleCustomRequest',
