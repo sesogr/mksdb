@@ -30,7 +30,6 @@ services:
   mksdb-php:
     build:
       context: .
-      dockerfile: php.dockerfile
     networks:
       - lnet
       - inet
