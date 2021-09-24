@@ -23,8 +23,8 @@ class DbIndexer
             sprintf(
                 <<<SQL
                     CREATE TABLE %s (
-                        word varchar(255) not null,
-                        reverse varchar(255) not null,
+                        word varchar(43) not null,
+                        reverse varchar(43) not null,
                         song int unsigned not null,
                         topics set(
                             'city', 'publisher', 'song-name', 'source', 'genre', 'song-addition', 'song-origin', 'collection',
