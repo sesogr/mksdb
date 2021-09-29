@@ -1,0 +1,6 @@
+body{margin:24px;font-family:sans-serif}
+div,fieldset{margin:12px 0}
+div{white-space:pre}
+table{border-collapse:collapse}
+th,td{text-align:left;padding:6px 12px;vertical-align:baseline}
+thead+tbody th,thead+tbody td{border-top:1px solid #ccc}

@@ -36,88 +36,36 @@ function setTitle($string) {
     printf("<script>document.title=%s</script>\n", json_encode($string, JSON_FLAGS));
     flush();
 }
-function showPage (string $baseUri, string $docRoot, string $installDir, string $progressFile, string $path, string $host, string $schema, string $username, string $password) {
-    $showForm = !is_file($progressFile) && 5 > count(array_filter([$path, $host, $schema, $username, $password]));
-?><!DOCTYPE html>
-<html lang="de">
-    <head>
-        <title>Installation</title>
-        <script>
-            <?php if ($showForm): ?>
-
-            document.addEventListener('DOMContentLoaded', () => {
-                const [input, url, path, apiUrl] = [
-                    'cku3chddh0000p386r3190y81',
-                    'cku3g67ql0008p386s8bc388w',
-                    'cku3clqhv0001p38631apyrki',
-                    'cku3cmhqv0002p386ifj66d5r',
-                ].map(id=>document.getElementById(id));
-                const updatePaths = () => {
-                    path.innerHTML = input.value ? input.value.replace(/^\/+|\/+$/g, '') + '/' : '';
-                    url.innerHTML = apiUrl.innerHTML = input.value ? encodeURI(input.value.replace(/^\/+|\/+$/g, '')) + '/' : '';
-                };
-                input.addEventListener('keyup', updatePaths);
-                updatePaths();
-            });
-            <?php else: ?>
-
-            function clear() {
-                const blocks = document.body.getElementsByTagName('div');
-                document.body.removeChild(blocks[blocks.length - 1]);
-                persist();
-            }
-            function persist() {
-                document.body.appendChild(document.createElement('div'));
-            }
-            function write(text) {
-                const blocks = document.body.getElementsByTagName('div');
-                blocks[blocks.length - 1].appendChild(document.createTextNode(text));
-                document.documentElement.scrollTop = document.documentElement.scrollHeight;
-            }
-            <?php endif ?>
-
-        </script>
-        <style>
-            body{margin:24px;font-family:sans-serif}
-            div,fieldset{margin:12px 0}
-            div{white-space:pre}
-            table{border-collapse:collapse}
-            th,td{text-align:left;padding:6px 12px;vertical-align:baseline}
-            thead+tbody th,thead+tbody td{border-top:1px solid #ccc}
-        </style>
-    </head>
-    <body>
-        <?php if ($showForm): ?>
-
-        <form action="" method="post">
+function showForm (string $baseUri, string $docRoot, string $installDir, string $path, string $host, string $schema, string $username, string $password) {
+?><form action="" method="post">
             <fieldset>
                 <legend>Verzeichnisse</legend>
                 <table>
                     <thead>
                     <tr>
                         <th></th>
-                        <th>Installer</th>
-                        <th><label for="cku3chddh0000p386r3190y81">Suche</label></th>
-                        <th>API</th>
+                        <th><label for="cku3chddh0000p386r3190y81">Verzeichnis</label></th>
+                        <th>URL</th>
+                        <th>Bemerkungen</th>
                     </tr>
                     </thead>
                     <tbody>
                     <tr>
-                        <th><label for="cku3chddh0000p386r3190y81">Verzeichnis</label></th>
+                        <th>Installer</th>
                         <td><?php echo realpath(__DIR__) ?></td>
-                        <td style="white-space:nowrap"><?php echo $docRoot ?>/<input id="cku3chddh0000p386r3190y81" name="cku3chddh0000p386r3190y81" value="<?php echo htmlspecialchars($path)?>" /></td>
-                        <td><?php echo $docRoot ?>/<span id="cku3clqhv0001p38631apyrki"></span>api</td>
-                    </tr>
-                    <tr>
-                        <th>URL</th>
-                        <td><?php echo sprintf('%s%s', $baseUri, $installDir) ?></td>
-                        <td><?php echo $baseUri ?>/<span id="cku3g67ql0008p386s8bc388w"></span></td>
-                        <td><?php echo $baseUri ?>/<span id="cku3cmhqv0002p386ifj66d5r"></span>api</td>
-                    </tr>
-                    <tr>
-                        <th>Bemerkungen</th>
+                        <td><?php echo sprintf('%s%s', $baseUri, $installDir) ?>/</td>
                         <td>Das ist die gerade angezeigte Seite. Sie wird nach erfolgreicher Installation gelöscht.</td>
+                    </tr>
+                    <tr>
+                        <th><label for="cku3chddh0000p386r3190y81">Suche</label></th>
+                        <td style="white-space:nowrap"><?php echo $docRoot ?>/<input id="cku3chddh0000p386r3190y81" name="cku3chddh0000p386r3190y81" value="<?php echo htmlspecialchars($path)?>" /></td>
+                        <td><?php echo $baseUri ?>/<span id="cku3g67ql0008p386s8bc388w"></span></td>
                         <td>Das ist die Seite, unter der die Suche zu finden sein wird.</td>
+                    </tr>
+                    <tr>
+                        <th>API</th>
+                        <td><?php echo $docRoot ?>/<span id="cku3clqhv0001p38631apyrki"></span>api</td>
+                        <td><?php echo $baseUri ?>/<span id="cku3cmhqv0002p386ifj66d5r"></span>api/</td>
                         <td>Das ist der Endpunkt der Schnittstelle, die intern die Daten liefert, aber nicht direkt von Menschen benutzt wird.</td>
                     </tr>
                     </tbody>
@@ -149,11 +97,24 @@ function showPage (string $baseUri, string $docRoot, string $installDir, string 
             <label>
                 <button type="submit">Installieren</button>
             </label>
-        </form>
-        <?php else: ?>
-
-        <div></div>
-        <?php endif ?>
+        </form><?php
+}
+function showPage (string $baseUri, string $docRoot, string $installDir, string $progressFile, string $path, string $host, string $schema, string $username, string $password) {
+    $showForm = !is_file($progressFile) && 4 > count(array_filter([$host, $schema, $username, $password]));
+?><!DOCTYPE html>
+<html lang="de">
+    <head>
+        <title>Installation</title>
+        <script src="<?php echo $showForm ? 'form' : 'log' ?>.js"></script>
+        <link rel="stylesheet" href="default.css" />
+    </head>
+    <body>
+        <?php
+            if ($showForm)
+                showForm($baseUri, $docRoot, $installDir, $path, $host, $schema, $username, $password);
+            else
+                echo '<div></div>';
+        ?>
 
     </body>
 </html><?php return [$showForm, sprintf("%s/%s", $docRoot, $path), $host, $schema, $username, $password];
