@@ -143,7 +143,7 @@ function makePage(string $baseUri, string $docRoot, string $installDir, string $
             HTML,
         $showForm
             ? "((a,b,c,d,e,f,g,h,i,j,k,l,m,n,o,p,q,r,s,t,u,v,w,x,y,z,_)=>b[c](d,()=>{const[á,ƀ,ç,đ]=[e+f+g+h+i+j,e+k+g+l+i+m,e+n+g+o+i+p,e+q+g+r+i+s][t](é=>b[u](é));const ǥ=()=>{ç[v]=á[w]?á[w][x](_,'')+'/':'';ƀ[v]=đ[v]=á[w]?a[y](á[w][x](_,''))+'/':'';};á[c](z,ǥ);ǥ();}))(window,document,...'addEventListener:DOMContentLoaded:cku3:chddh:000:0p:386:r3190y81:g67ql:8p:s8bc388w:clqhv:1p:31apyrki:cmhqv:2p:ifj66d5r:map:getElementById:innerHTML:value:replace:encodeURI:keyup'.split(':'),/^\/+|\/+$/g)"
-            : "const[a,c,i,s]=((a,b,c,d,e,f,g,h,i,j,k,l,m,n,o,p,q,r,s,t)=>((u,v)=>(w=>[x=>w[b+d](a[f+i](g)),x=>w[p+i+d][e+q]=[s,k,j][x],x=>w[p+i+d][o+n]=x,x=>v[r+t]=v[r+m]])(u[l+i+d]))(a[c],a[h+i]))(document,...'append:body:Child:class:create:div:document:Element:end:error:first:Height:HTML:inner:last:Name:scroll:success:Top'.split(':'))"
+            : "const[a,c,i,r,s]=((a,b,c,d,e,f,g,h,i,j,k,l,m,n,o,p,q,r,s,t,u,v)=>((w,x,y)=>((z,á)=>((ƀ,ç)=>[_=>ƀ[c+d](w[e+f](g)),_=>ƀ[ç][h]=[i,j,k][_],_=>ƀ[ç][l]=_,_=>x(()=>y[m]=y[m],_*b),_=>á[n+o]=á[n+p]])(z[q+f+d],r+f+d))(w[s],w[t+f]))(a[t],a[u],a[v]))(window,1e3,...'append:Child:create:Element:div:className:success:error:end:innerHTML:href:scroll:Top:Height:first:last:body:document:setTimeout:location'.split(':'))"
     );
 }
 
@@ -158,7 +158,7 @@ function sendHtml($path, $host, $schema, $username, $password, $baseUri, $docRoo
         sleep(1);
         printf(
             file_put_contents($progressFile, "step1\nstep1\n")
-                ? "<script>i('Aufgabenliste gespeichert.');c(0);a();i('Lade neu...');s();setTimeout(_=>location.href=location.href,1000)</script>\n"
+                ? "<script>i('Aufgabenliste gespeichert.');c(0);a();i('Lade neu...');s();r(1)</script>\n"
                 :"<script>i('Fehler beim Anlegen der Datei %s<br />Bitte Schreibrechte des Verzeichnisses prüfen.');c(1);s()</script>\n",
             $progressFile
         );
