@@ -1,8 +1,7 @@
 <?php declare(strict_types=1);
 set_time_limit(0);
 set_error_handler(function (int $code, string $message, ?string $file, ?int $line, ?array $context = []) {
-    printf("<script>i(%s);c(1);a();s()</script>\n", json_encode($message, JSON_FLAGS));
-    flush();
+    sendUpdate('i(%s);c(1);a();s()', json_encode($message, JSON_FLAGS));
 });
 const JSON_FLAGS = JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES;
 sendHtml(
@@ -171,6 +170,11 @@ function makePage(string $baseUri, string $docRoot, string $installDir, string $
     );
 }
 
+function sendUpdate(string $commands, ...$args): void {
+    printf("<script>%s</script>\n", $args ? sprintf($commands, ...$args) : $commands);
+    flush();
+}
+
 function sendHtml($path, $host, $schema, $username, $password, $baseUri, $docRoot, $installerDir, $progressFileName): void
 {
     $progressFile = sprintf("%s/%s", $installerDir, $progressFileName);
@@ -180,10 +184,10 @@ function sendHtml($path, $host, $schema, $username, $password, $baseUri, $docRoo
         printf("<script>i(%s);s()</script>\n", json_encode('Prüfe Schreibrechte für Aufgabenliste...<br />', JSON_FLAGS));
         flush();
         sleep(1);
-        printf(
-            file_put_contents($progressFile, "step1\nstep1\n")
-                ? "<script>i('Aufgabenliste gespeichert.');c(0);a();i('Lade neu...');s();r(1)</script>\n"
-                :"<script>i('Fehler beim Anlegen der Datei %s<br />Bitte Schreibrechte des Verzeichnisses prüfen.');c(1);s()</script>\n",
+        sendUpdate(
+            file_put_contents($progressFile, '') !== false
+                ? 'i("Aufgabenliste angelegt.");c(0);a();i(\'Lade neu...\');s();r(1)'
+                : 'i("Fehler beim Anlegen der Datei %s<br />Bitte Schreibrechte für das Verzeichnis erteilen.");c(1);s()',
             $progressFile
         );
         flush();
@@ -196,19 +200,16 @@ function sendHtml($path, $host, $schema, $username, $password, $baseUri, $docRoo
                 /** @var Generator $generator */
                 $generator = $task();
                 foreach ($generator as $message) {
-                    printf("<script>i(%s);s()</script>\n", json_encode($message . '<br />', JSON_FLAGS));
-                    flush();
+                    sendUpdate('i(%s);s()', json_encode($message . '<br />', JSON_FLAGS));
                 }
                 $message = $generator->getReturn();
             } catch (Exception $e) {
                 $isError = true;
                 $message = $e->getMessage();
             }
-            printf("<script>i(%s);c(%d);a();s()</script>\n", json_encode($message, JSON_FLAGS), $isError);
-            flush();
+            sendUpdate('i(%s);c(%d);a();s()', json_encode($message, JSON_FLAGS), $isError);
             if ($isError) break;
         }
-        echo "<script>c(2)</script>\n";
-        flush();
+        sendUpdate('c(2)');
     }
 }
