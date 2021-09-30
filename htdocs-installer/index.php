@@ -16,14 +16,14 @@ sendHtml(
     'queue.txt'
 );
 //
-function step1(): Generator
+function step(int $step): Generator
 {
-    yield 'Starting step 1.';
+    yield sprintf("Starting step %d.", $step);
     time_nanosleep(1, (int)1e8);
     yield 'In Progress...';
     time_nanosleep(1, (int)1e8);
-    if (mt_rand(0, 1)) return 'Finished step 1.';
-    throw new Exception('Step 1 failed');
+    if (mt_rand(0, 1)) return sprintf("Finished step %d.", $step);
+    throw new Exception(sprintf("Step %d failed.", $step));
 }
 //
 function dequeue(string $queuePath): ?Closure {
@@ -129,7 +129,7 @@ function makeForm(string $baseUri, string $docRoot, string $installDir, string $
     );
 }
 
-function makePage(string $baseUri, string $docRoot, string $installDir, string $path, string $host, string $schema, string $username, string $password, bool $showForm): string
+function makePage(string $baseUri, string $docRoot, string $installDir, string $path = '', string $host = 'localhost', string $schema = '', string $username = '', string $password = '', bool $showForm = false): string
 {
     return sprintf(
         <<<'HTML'
@@ -178,11 +178,9 @@ function sendUpdate(string $commands, ...$args): void {
 function sendHtml($path, $host, $schema, $username, $password, $baseUri, $docRoot, $installerDir, $progressFileName): void
 {
     $progressFile = sprintf("%s/%s", $installerDir, $progressFileName);
-    $showForm = is_file($progressFile) && 4 > count(array_filter([$host, $schema, $username, $password]));
-    echo makePage($baseUri, $docRoot, $installerDir, $path, $host, $schema, $username, $password, $showForm);
     if (!is_file($progressFile)) {
-        printf("<script>i(%s);s()</script>\n", json_encode('Prüfe Schreibrechte für Aufgabenliste...<br />', JSON_FLAGS));
-        flush();
+        echo makePage($baseUri, $docRoot, $installerDir);
+        sendUpdate('i(%s);s()', json_encode('Prüfe Schreibrechte für Aufgabenliste...<br />', JSON_FLAGS));
         sleep(1);
         sendUpdate(
             file_put_contents($progressFile, '') !== false
@@ -190,15 +188,23 @@ function sendHtml($path, $host, $schema, $username, $password, $baseUri, $docRoo
                 : 'i("Fehler beim Anlegen der Datei %s<br />Bitte Schreibrechte für das Verzeichnis erteilen.");c(1);s()',
             $progressFile
         );
-        flush();
-    } elseif (!$showForm) {
-        /** @var closure[] $tasks */
-        $tasks = array_fill(0, 32, 'step1');
-        foreach ($tasks as $task) {
+    } elseif (filesize($progressFile) === 0 && count(array_filter([$host, $schema, $username, $password])) < 4) {
+        echo makePage($baseUri, $docRoot, $installerDir, $path, $host, $schema, $username, $password, true);
+    } else {
+        echo makePage($baseUri, $docRoot, $installerDir);
+        if (filesize($progressFile) === 0) {
+            sendUpdate('i(\'Befülle Aufgabenliste...\');s()');
+            enqueue($progressFile, 'step', 1);
+            enqueue($progressFile, 'step', 2);
+            enqueue($progressFile, 'step', 3);
+            enqueue($progressFile, 'step', 4);
+            sendUpdate('i(\'Aufgabenliste befüllt.\');c(0);a();s()');
+        }
+        while ($thunk = dequeue($progressFile)) {
             $isError = false;
             try {
                 /** @var Generator $generator */
-                $generator = $task();
+                $generator = $thunk();
                 foreach ($generator as $message) {
                     sendUpdate('i(%s);s()', json_encode($message . '<br />', JSON_FLAGS));
                 }
