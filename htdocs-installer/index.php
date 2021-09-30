@@ -4,7 +4,7 @@ set_error_handler(function (int $code, string $message, ?string $file, ?int $lin
     sendUpdate('i(%s);c(1);a();s()', json_encode($message, JSON_FLAGS));
 });
 const JSON_FLAGS = JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES;
-sendHtml(
+run(
     $_POST['cku3chddh0000p386r3190y81'] ?? '',
     $_POST['cku3d53lb0003p386qbirzhvq'] ?? 'localhost',
     $_POST['cku3dbtrq0004p386ct13vmhx'] ?? '',
@@ -48,6 +48,14 @@ function enqueue(string $queuePath, string $function, ...$args): bool {
         sprintf("%s:%s\n", $function, base64_encode(gzcompress(json_encode($args, JSON_FLAGS)))),
         FILE_APPEND
     );
+}
+
+function initialiseQueue(string $progressFile, string $baseUri, string $docRoot, string $installDir, string $path, string $host, string $schema, string $username, string $password): void
+{
+    enqueue($progressFile, 'step', 1);
+    enqueue($progressFile, 'step', 2);
+    enqueue($progressFile, 'step', 3);
+    enqueue($progressFile, 'step', 4);
 }
 
 function makeForm(string $baseUri, string $docRoot, string $installDir, string $path, string $host, string $schema, string $username, string $password): string
@@ -170,12 +178,7 @@ function makePage(string $baseUri, string $docRoot, string $installDir, string $
     );
 }
 
-function sendUpdate(string $commands, ...$args): void {
-    printf("<script>%s</script>\n", $args ? sprintf($commands, ...$args) : $commands);
-    flush();
-}
-
-function sendHtml($path, $host, $schema, $username, $password, $baseUri, $docRoot, $installerDir, $progressFileName): void
+function run($path, $host, $schema, $username, $password, $baseUri, $docRoot, $installerDir, $progressFileName): void
 {
     $progressFile = sprintf("%s/%s", $installerDir, $progressFileName);
     if (!is_file($progressFile)) {
@@ -194,10 +197,7 @@ function sendHtml($path, $host, $schema, $username, $password, $baseUri, $docRoo
         echo makePage($baseUri, $docRoot, $installerDir);
         if (filesize($progressFile) === 0) {
             sendUpdate('i(\'Befülle Aufgabenliste...\');s()');
-            enqueue($progressFile, 'step', 1);
-            enqueue($progressFile, 'step', 2);
-            enqueue($progressFile, 'step', 3);
-            enqueue($progressFile, 'step', 4);
+            initialiseQueue($progressFile, $baseUri, $docRoot, $installerDir, $path, $host, $schema, $username, $password);
             sendUpdate('i(\'Aufgabenliste befüllt.\');c(0);a();s()');
         }
         while ($thunk = dequeue($progressFile)) {
@@ -218,4 +218,9 @@ function sendHtml($path, $host, $schema, $username, $password, $baseUri, $docRoo
         }
         sendUpdate('c(2)');
     }
+}
+
+function sendUpdate(string $commands, ...$args): void {
+    printf("<script>%s</script>\n", $args ? sprintf($commands, ...$args) : $commands);
+    flush();
 }
