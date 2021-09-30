@@ -1,4 +1,4 @@
 .idea/
 docker/mks/mariadb-data/
 app-dist
-htdocs-installer/progress.json
+htdocs-installer/queue.txt

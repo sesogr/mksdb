@@ -14,7 +14,7 @@ sendHtml(
     sprintf('%s://%s', $_SERVER['REQUEST_SCHEME'], $_SERVER['HTTP_HOST']),
     $_SERVER['DOCUMENT_ROOT'],
     __DIR__,
-    'progress.json'
+    'queue.txt'
 );
 //
 function step1(): Generator
@@ -27,6 +27,30 @@ function step1(): Generator
     throw new Exception('Step 1 failed');
 }
 //
+function dequeue(string $queuePath): ?Closure {
+    $lines = file($queuePath);
+    if (empty($lines)) {
+        return null;
+    }
+    $first = array_shift($lines);
+    [$function, $args] = explode(':', $first, 2);
+    return function () use ($function, $args, $queuePath, $lines) {
+        /** @var Generator $result */
+        $result = $function(...json_decode(gzuncompress(base64_decode($args))));
+        yield from $result;
+        file_put_contents($queuePath, $lines);
+        return $result->getReturn();
+    };
+}
+
+function enqueue(string $queuePath, string $function, ...$args): bool {
+    return (bool)file_put_contents(
+        $queuePath,
+        sprintf("%s:%s\n", $function, base64_encode(gzcompress(json_encode($args, JSON_FLAGS)))),
+        FILE_APPEND
+    );
+}
+
 function makeForm(string $baseUri, string $docRoot, string $installDir, string $path, string $host, string $schema, string $username, string $password): string
 {
     return sprintf(
