@@ -6,10 +6,10 @@ set_error_handler(function (int $code, string $message, ?string $file, ?int $lin
 const JSON_FLAGS = JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES;
 run(
     $_POST['cku3chddh0000p386r3190y81'] ?? '',
-    $_POST['cku3d53lb0003p386qbirzhvq'] ?? 'sedna-soft.de',
-    $_POST['cku3dbtrq0004p386ct13vmhx'] ?? 'dbmks',
-    $_POST['cku3dcdu50006p38620xa9iqe'] ?? 'dbmks',
-    $_POST['cku3dcjh10007p386jefnoz8r'] ?? 'WewgArtYeshUb3',
+    $_POST['cku3d53lb0003p386qbirzhvq'] ?? 'localhost',
+    $_POST['cku3dbtrq0004p386ct13vmhx'] ?? '',
+    $_POST['cku3dcdu50006p38620xa9iqe'] ?? '',
+    $_POST['cku3dcjh10007p386jefnoz8r'] ?? '',
     sprintf('%s://%s', $_SERVER['REQUEST_SCHEME'], $_SERVER['HTTP_HOST']),
     $_SERVER['DOCUMENT_ROOT'],
     __DIR__,
