@@ -6,16 +6,53 @@ set_error_handler(function (int $code, string $message, ?string $file, ?int $lin
 const JSON_FLAGS = JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES;
 run(
     $_POST['cku3chddh0000p386r3190y81'] ?? '',
-    $_POST['cku3d53lb0003p386qbirzhvq'] ?? 'localhost',
-    $_POST['cku3dbtrq0004p386ct13vmhx'] ?? '',
-    $_POST['cku3dcdu50006p38620xa9iqe'] ?? '',
-    $_POST['cku3dcjh10007p386jefnoz8r'] ?? '',
+    $_POST['cku3d53lb0003p386qbirzhvq'] ?? 'sedna-soft.de',
+    $_POST['cku3dbtrq0004p386ct13vmhx'] ?? 'dbmks',
+    $_POST['cku3dcdu50006p38620xa9iqe'] ?? 'dbmks',
+    $_POST['cku3dcjh10007p386jefnoz8r'] ?? 'WewgArtYeshUb3',
     sprintf('%s://%s', $_SERVER['REQUEST_SCHEME'], $_SERVER['HTTP_HOST']),
     $_SERVER['DOCUMENT_ROOT'],
     __DIR__,
     'queue.txt'
 );
 //
+function applyDbOperations(string $host, string $schema, string $username, string $password): Generator {
+    $last = null;
+    [$host, $port] = explode(':', $host . ':3306:', 3);
+    try {
+        $db = new PDO(
+            sprintf('mysql:host=%s;port=%d;dbname=%s;charset=utf8mb4', $host, $port, $schema),
+            $username,
+            $password,
+            [PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION]
+        );
+    } catch (PDOException $e) {
+        throw new Exception('Fehler beim Verbindungsaufbau, bitte Datenbank-Angaben korrigieren.');
+    }
+    yield 'Lade operations-compact.sql herunter...';
+    foreach (file('https://raw.githubusercontent.com/sesogr/mksdb/master/operations-compact.sql') as $command) {
+        [$type,, $name] = explode(' ', $command . '   ', 4);
+        if ($type === 'insert') {
+            yield sprintf(
+                'Erstelle Einträge für %s... %s',
+                $name,
+                strpos($name, '_x_') ? '(Dieser Schritt kann mehrere Minuten in Anspruch nehmen.)' : ''
+            );
+        } elseif ($type !== $last) {
+            switch ($type) {
+                case 'drop': yield 'Entferne alte Tabellen...'; break;
+                case 'create': yield 'Erstelle Tabellen...'; break;
+                case 'alter': yield 'Optimiere Tabellen...'; break;
+            }
+        }
+        $last = $type;
+        if ($command) {
+            $db->exec($command);
+        }
+    }
+    return 'Berichtstabellen vollständig aufgebaut.';
+}
+
 function importDataDump(string $url, string $host, string $schema, string $username, string $password, bool $isFirst = false): Generator
 {
     if ($isFirst) {
@@ -43,6 +80,42 @@ function importDataDump(string $url, string $host, string $schema, string $usern
         $db->exec(sprintf('%s%s', $i ? 'INSERT INTO ' : '', $command));
     }
     return sprintf('Datenpaket %s importiert.', basename($url));
+}
+
+function recreateStripPunctuation(string $host, string $schema, string $username, string $password): Generator {
+    $drop = 'drop function if exists strip_punctuation';
+    $create = <<<'SQL'
+        create function strip_punctuation(input text) returns text deterministic
+        begin
+            declare text1, text2, text3, text4, text5, text6, text7 text;
+            set text1 = replace(replace(replace(replace(replace(input, '`', ' '), '=', ' '), '[', ' '), ']', ' '), ';', ' ');
+            set text2 = replace(replace(replace(replace(replace(text1, '\'', ' '), '\\', ' '), ',', ' '), '.', ' '), '/', ' ');
+            set text3 = replace(replace(replace(replace(replace(text2, '~', ' '), '!', ' '), '@', ' '), '#', ' '), '$', ' ');
+            set text4 = replace(replace(replace(replace(replace(text3, '%', ' '), '^', ' '), '&', ' '), '*', ' '), '(', ' ');
+            set text5 = replace(replace(replace(replace(replace(text4, ')', ' '), '_', ' '), '+', ' '), '\{', ' '), '}', ' ');
+            set text6 = replace(replace(replace(replace(replace(text5, ':', ' '), '"', ' '), '|', ' '), '<', ' '), '>', ' ');
+            set text7 = replace(replace(replace(replace(text6, '?', ' '), '         ', ' '), '     ', ' '), '   ', ' ');
+            return replace(replace(text7, '  ', ' '), ' ', ' ');
+        end
+        SQL;
+    [$host, $port] = explode(':', $host . ':3306:', 3);
+    try {
+        $db = new PDO(
+            sprintf('mysql:host=%s;port=%d;dbname=%s;charset=utf8mb4', $host, $port, $schema),
+            $username,
+            $password,
+            [PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION]
+        );
+        yield 'Entferne alte Version von strip_punctuation...';
+        $db->exec($drop);
+        time_nanosleep(0, 500000000);
+        yield 'Installiere neue Version von strip_punctuation...';
+        $db->exec($create);
+        time_nanosleep(0, 500000000);
+    } catch (PDOException $e) {
+        throw new Exception('Fehler beim Verbindungsaufbau, bitte Datenbank-Angaben korrigieren.');
+    }
+    return 'Hilfsfunktion strip_punctuation installiert.';
 }
 
 function step(int $step): Generator
@@ -85,7 +158,8 @@ function initialiseQueue(string $progressFile, string $baseUri, string $docRoot,
     enqueue($progressFile, 'importDataDump', 'https://raw.githubusercontent.com/sesogr/mksdb/master/csv-import/4-parts/part-2-of-4.sql', $host, $schema, $username, $password);
     enqueue($progressFile, 'importDataDump', 'https://raw.githubusercontent.com/sesogr/mksdb/master/csv-import/4-parts/part-3-of-4.sql', $host, $schema, $username, $password);
     enqueue($progressFile, 'importDataDump', 'https://raw.githubusercontent.com/sesogr/mksdb/master/csv-import/4-parts/part-4-of-4.sql', $host, $schema, $username, $password);
-    enqueue($progressFile, 'step', 2);
+    enqueue($progressFile, 'recreateStripPunctuation', $host, $schema, $username, $password);
+    enqueue($progressFile, 'applyDbOperations', $host, $schema, $username, $password);
     enqueue($progressFile, 'step', 3);
     enqueue($progressFile, 'step', 4);
 }
