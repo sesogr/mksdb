@@ -24,7 +24,7 @@ function applyDbOperations(string $host, string $schema, string $username, strin
             sprintf('mysql:host=%s;port=%d;dbname=%s;charset=utf8mb4', $host, $port, $schema),
             $username,
             $password,
-            [PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION]
+            [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION, PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_OBJ]
         );
     } catch (PDOException $e) {
         throw new Exception('Fehler beim Verbindungsaufbau, bitte Datenbank-Angaben korrigieren.');
@@ -64,7 +64,7 @@ function importDataDump(string $fileName, string $host, string $schema, string $
             sprintf('mysql:host=%s;port=%d;dbname=%s;charset=utf8mb4', $host, $port, $schema),
             $username,
             $password,
-            [PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION]
+            [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION, PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_OBJ]
         );
     } catch (PDOException $e) {
         throw new Exception('Fehler beim Verbindungsaufbau, bitte Datenbank-Angaben korrigieren.');
@@ -105,7 +105,7 @@ function recreateStripPunctuation(string $host, string $schema, string $username
             sprintf('mysql:host=%s;port=%d;dbname=%s;charset=utf8mb4', $host, $port, $schema),
             $username,
             $password,
-            [PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION]
+            [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION, PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_OBJ]
         );
         yield 'Entferne alte Version von strip_punctuation...';
         $db->exec($drop);
