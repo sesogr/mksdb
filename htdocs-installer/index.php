@@ -53,7 +53,7 @@ function applyDbOperations(string $host, string $schema, string $username, strin
     return 'Berichtstabellen vollständig aufgebaut.';
 }
 
-function importDataDump(string $url, string $host, string $schema, string $username, string $password, bool $isFirst = false): Generator
+function importDataDump(string $fileName, string $host, string $schema, string $username, string $password, bool $isFirst = false): Generator
 {
     if ($isFirst) {
         yield 'Prüfe Datenbank-Verbindung...';
@@ -73,13 +73,14 @@ function importDataDump(string $url, string $host, string $schema, string $usern
         && $db->query('select count(*) from `20201217-oeaw-schlager-db`')->fetchColumn() == 14710) {
         return $isFirst ? 'Mastertabelle ist vollständig vorhanden, Import übersprungen.' : null;
     }
-    yield sprintf('Lade %s herunter...', basename($url));
-    $commands = explode(";\nINSERT INTO ", file_get_contents($url));
+    $baseUri = 'https://raw.githubusercontent.com/sesogr/mksdb/master/csv-import/4-parts/';
+    yield sprintf('Lade %s herunter...', $fileName);
+    $commands = explode(";\nINSERT INTO ", file_get_contents($baseUri . $fileName));
     foreach ($commands as $i => $command) {
         yield sprintf('Importiere Daten... %.1f%%', $i / count($commands) * 100);
         $db->exec(sprintf('%s%s', $i ? 'INSERT INTO ' : '', $command));
     }
-    return sprintf('Datenpaket %s importiert.', basename($url));
+    return sprintf('Datenpaket %s importiert.', $fileName);
 }
 
 function recreateStripPunctuation(string $host, string $schema, string $username, string $password): Generator {
@@ -154,10 +155,10 @@ function enqueue(string $queuePath, callable $function, ...$args): bool {
 
 function initialiseQueue(string $progressFile, string $baseUri, string $docRoot, string $installDir, string $path, string $host, string $schema, string $username, string $password): void
 {
-    enqueue($progressFile, 'importDataDump', 'https://raw.githubusercontent.com/sesogr/mksdb/master/csv-import/4-parts/part-1-of-4.sql', $host, $schema, $username, $password, true);
-    enqueue($progressFile, 'importDataDump', 'https://raw.githubusercontent.com/sesogr/mksdb/master/csv-import/4-parts/part-2-of-4.sql', $host, $schema, $username, $password);
-    enqueue($progressFile, 'importDataDump', 'https://raw.githubusercontent.com/sesogr/mksdb/master/csv-import/4-parts/part-3-of-4.sql', $host, $schema, $username, $password);
-    enqueue($progressFile, 'importDataDump', 'https://raw.githubusercontent.com/sesogr/mksdb/master/csv-import/4-parts/part-4-of-4.sql', $host, $schema, $username, $password);
+    enqueue($progressFile, 'importDataDump', 'part-1-of-4.sql', $host, $schema, $username, $password, true);
+    enqueue($progressFile, 'importDataDump', 'part-2-of-4.sql', $host, $schema, $username, $password);
+    enqueue($progressFile, 'importDataDump', 'part-3-of-4.sql', $host, $schema, $username, $password);
+    enqueue($progressFile, 'importDataDump', 'part-4-of-4.sql', $host, $schema, $username, $password);
     enqueue($progressFile, 'recreateStripPunctuation', $host, $schema, $username, $password);
     enqueue($progressFile, 'applyDbOperations', $host, $schema, $username, $password);
     enqueue($progressFile, 'step', 3);
