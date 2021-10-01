@@ -16,6 +16,35 @@ run(
     'queue.txt'
 );
 //
+function importDataDump(string $url, string $host, string $schema, string $username, string $password, bool $isFirst = false): Generator
+{
+    if ($isFirst) {
+        yield 'Prüfe Datenbank-Verbindung...';
+    }
+    [$host, $port] = explode(':', $host . ':3306:', 3);
+    try {
+        $db = new PDO(
+            sprintf('mysql:host=%s;port=%d;dbname=%s;charset=utf8mb4', $host, $port, $schema),
+            $username,
+            $password,
+            [PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION]
+        );
+    } catch (PDOException $e) {
+        throw new Exception('Fehler beim Verbindungsaufbau, bitte Datenbank-Angaben korrigieren.');
+    }
+    if ($db->query("show tables like '20201217-oeaw-schlager-db'")->rowCount() === 1
+        && $db->query('select count(*) from `20201217-oeaw-schlager-db`')->fetchColumn() == 14710) {
+        return $isFirst ? 'Mastertabelle ist vollständig vorhanden, Import übersprungen.' : null;
+    }
+    yield sprintf('Lade %s herunter...', basename($url));
+    $commands = explode(";\nINSERT INTO ", file_get_contents($url));
+    foreach ($commands as $i => $command) {
+        yield sprintf('Importiere Daten... %.1f%%', $i / count($commands) * 100);
+        $db->exec(sprintf('%s%s', $i ? 'INSERT INTO ' : '', $command));
+    }
+    return sprintf('Datenpaket %s importiert.', basename($url));
+}
+
 function step(int $step): Generator
 {
     yield sprintf("Starting step %d.", $step);
@@ -42,7 +71,7 @@ function dequeue(string $queuePath): ?Closure {
     };
 }
 
-function enqueue(string $queuePath, string $function, ...$args): bool {
+function enqueue(string $queuePath, callable $function, ...$args): bool {
     return (bool)file_put_contents(
         $queuePath,
         sprintf("%s:%s\n", $function, base64_encode(gzcompress(json_encode($args, JSON_FLAGS)))),
@@ -52,7 +81,10 @@ function enqueue(string $queuePath, string $function, ...$args): bool {
 
 function initialiseQueue(string $progressFile, string $baseUri, string $docRoot, string $installDir, string $path, string $host, string $schema, string $username, string $password): void
 {
-    enqueue($progressFile, 'step', 1);
+    enqueue($progressFile, 'importDataDump', 'https://raw.githubusercontent.com/sesogr/mksdb/master/csv-import/4-parts/part-1-of-4.sql', $host, $schema, $username, $password, true);
+    enqueue($progressFile, 'importDataDump', 'https://raw.githubusercontent.com/sesogr/mksdb/master/csv-import/4-parts/part-2-of-4.sql', $host, $schema, $username, $password);
+    enqueue($progressFile, 'importDataDump', 'https://raw.githubusercontent.com/sesogr/mksdb/master/csv-import/4-parts/part-3-of-4.sql', $host, $schema, $username, $password);
+    enqueue($progressFile, 'importDataDump', 'https://raw.githubusercontent.com/sesogr/mksdb/master/csv-import/4-parts/part-4-of-4.sql', $host, $schema, $username, $password);
     enqueue($progressFile, 'step', 2);
     enqueue($progressFile, 'step', 3);
     enqueue($progressFile, 'step', 4);
@@ -213,8 +245,13 @@ function run($path, $host, $schema, $username, $password, $baseUri, $docRoot, $i
                 $isError = true;
                 $message = $e->getMessage();
             }
-            sendUpdate('i(%s);c(%d);a();s()', json_encode($message, JSON_FLAGS), $isError);
-            if ($isError) break;
+            if ($message) {
+                sendUpdate('i(%s);c(%d);a();s()', json_encode($message, JSON_FLAGS), $isError);
+            }
+            if ($isError) {
+                unlink($progressFileName);
+                break;
+            }
         }
         sendUpdate('c(2)');
     }
