@@ -108,10 +108,10 @@ function recreateStripPunctuation(string $host, string $schema, string $username
         );
         yield 'Entferne alte Version von strip_punctuation...';
         $db->exec($drop);
-        time_nanosleep(0, 500000000);
+        time_nanosleep(0, (int)3e8);
         yield 'Installiere neue Version von strip_punctuation...';
         $db->exec($create);
-        time_nanosleep(0, 500000000);
+        time_nanosleep(0, (int)3e8);
     } catch (PDOException $e) {
         throw new Exception('Fehler beim Verbindungsaufbau, bitte Datenbank-Angaben korrigieren.');
     }
@@ -121,9 +121,9 @@ function recreateStripPunctuation(string $host, string $schema, string $username
 function step(int $step): Generator
 {
     yield sprintf("Starting step %d.", $step);
-    time_nanosleep(1, (int)1e8);
+    time_nanosleep(1, (int)3e8);
     yield 'In Progress...';
-    time_nanosleep(1, (int)1e8);
+    time_nanosleep(1, (int)3e8);
     if (mt_rand(0, 1)) return sprintf("Finished step %d.", $step);
     throw new Exception(sprintf("Step %d failed.", $step));
 }
@@ -169,68 +169,68 @@ function makeForm(string $baseUri, string $docRoot, string $installDir, string $
     return sprintf(
         <<<'HTML'
 
-                <form action="" method="post">
-                    <fieldset>
-                        <legend>Verzeichnisse</legend>
-                        <table>
-                            <thead>
-                                <tr>
-                                    <th></th>
-                                    <th><label for="cku3chddh0000p386r3190y81">Verzeichnis</label></th>
-                                    <th>URL</th>
-                                    <th>Bemerkungen</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <tr>
-                                    <th>Installer</th>
-                                    <td>%s</td>
-                                    <td>%s%s/</td>
-                                    <td>Das ist die gerade angezeigte Seite. Sie wird nach erfolgreicher Installation gelöscht.</td>
-                                </tr>
-                                <tr>
-                                    <th><label for="cku3chddh0000p386r3190y81">Suche</label></th>
-                                    <td style="white-space:nowrap">%s/<input id="cku3chddh0000p386r3190y81" name="cku3chddh0000p386r3190y81" value="%s"/> </td>
-                                    <td>%2$s/<span id="cku3g67ql0008p386s8bc388w"></span></td>
-                                    <td>Das ist die Seite, unter der die Suche zu finden sein wird.</td>
-                                </tr>
-                                <tr>
-                                    <th>API</th>
-                                    <td>%4$s/<span id="cku3clqhv0001p38631apyrki"></span>api</td>
-                                    <td>%2$s/<span id="cku3cmhqv0002p386ifj66d5r"></span>api/</td>
-                                    <td>Das ist der Endpunkt der Schnittstelle, die intern die Daten liefert, aber nicht direkt von Menschen benutzt wird. </td>
-                                </tr>
-                            </tbody>
-                        </table>
-                    </fieldset>
-                    <fieldset>
-                        <legend>Datenbank</legend>
-                        <table>
-                            <tbody>
-                                <tr>
-                                    <th><label for="cku3d53lb0003p386qbirzhvq">Host</label></th>
-                                    <td><input id="cku3d53lb0003p386qbirzhvq" name="cku3d53lb0003p386qbirzhvq" value="%s"/></td>
-                                </tr>
-                                <tr>
-                                    <th><label for="cku3dbtrq0004p386ct13vmhx">Datenbankname</label></th>
-                                    <td><input id="cku3dbtrq0004p386ct13vmhx" name="cku3dbtrq0004p386ct13vmhx" placeholder="z. B. schlager" value="%s"/></td>
-                                </tr>
-                                <tr>
-                                    <th><label for="cku3dcdu50006p38620xa9iqe">Benutzername</label></th>
-                                    <td><input id="cku3dcdu50006p38620xa9iqe" name="cku3dcdu50006p38620xa9iqe" placeholder="z. B. schlager" value="%s"/></td>
-                                </tr>
-                                <tr>
-                                    <th><label for="cku3dcjh10007p386jefnoz8r">Kennwort</label></th>
-                                    <td><input id="cku3dcjh10007p386jefnoz8r" name="cku3dcjh10007p386jefnoz8r" placeholder="z. B. zorofzoftumev" value="%s"/></td>
-                                </tr>
-                            </tbody>
-                        </table>
-                    </fieldset>
-                    <label>
-                        <button type="submit">Installieren</button>
-                    </label>
-                </form>
-        HTML,
+                    <form action="" method="post">
+                        <fieldset>
+                            <legend>Verzeichnisse</legend>
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th></th>
+                                        <th><label for="cku3chddh0000p386r3190y81">Verzeichnis</label></th>
+                                        <th>URL</th>
+                                        <th>Bemerkungen</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr>
+                                        <th>Installer</th>
+                                        <td>%s</td>
+                                        <td>%s%s/</td>
+                                        <td>Das ist die gerade angezeigte Seite. Sie wird nach erfolgreicher Installation gelöscht.</td>
+                                    </tr>
+                                    <tr>
+                                        <th><label for="cku3chddh0000p386r3190y81">Suche</label></th>
+                                        <td style="white-space:nowrap">%s/<input id="cku3chddh0000p386r3190y81" name="cku3chddh0000p386r3190y81" value="%s"/> </td>
+                                        <td>%2$s/<span id="cku3g67ql0008p386s8bc388w"></span></td>
+                                        <td>Das ist die Seite, unter der die Suche zu finden sein wird.</td>
+                                    </tr>
+                                    <tr>
+                                        <th>API</th>
+                                        <td>%4$s/<span id="cku3clqhv0001p38631apyrki"></span>api</td>
+                                        <td>%2$s/<span id="cku3cmhqv0002p386ifj66d5r"></span>api/</td>
+                                        <td>Das ist der Endpunkt der Schnittstelle, die intern die Daten liefert, aber nicht direkt von Menschen benutzt wird. </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </fieldset>
+                        <fieldset>
+                            <legend>Datenbank</legend>
+                            <table>
+                                <tbody>
+                                    <tr>
+                                        <th><label for="cku3d53lb0003p386qbirzhvq">Host</label></th>
+                                        <td><input id="cku3d53lb0003p386qbirzhvq" name="cku3d53lb0003p386qbirzhvq" value="%s"/></td>
+                                    </tr>
+                                    <tr>
+                                        <th><label for="cku3dbtrq0004p386ct13vmhx">Datenbankname</label></th>
+                                        <td><input id="cku3dbtrq0004p386ct13vmhx" name="cku3dbtrq0004p386ct13vmhx" placeholder="z. B. schlager" value="%s"/></td>
+                                    </tr>
+                                    <tr>
+                                        <th><label for="cku3dcdu50006p38620xa9iqe">Benutzername</label></th>
+                                        <td><input id="cku3dcdu50006p38620xa9iqe" name="cku3dcdu50006p38620xa9iqe" placeholder="z. B. schlager" value="%s"/></td>
+                                    </tr>
+                                    <tr>
+                                        <th><label for="cku3dcjh10007p386jefnoz8r">Kennwort</label></th>
+                                        <td><input id="cku3dcjh10007p386jefnoz8r" name="cku3dcjh10007p386jefnoz8r" placeholder="z. B. zorofzoftumev" value="%s"/></td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </fieldset>
+                        <label>
+                            <button type="submit">Installieren</button>
+                        </label>
+                    </form>
+            HTML,
         htmlspecialchars(realpath(__DIR__)),
         htmlspecialchars($baseUri),
         htmlspecialchars($installDir),
@@ -247,37 +247,37 @@ function makePage(string $baseUri, string $docRoot, string $installDir, string $
 {
     return sprintf(
         <<<'HTML'
-        <!DOCTYPE html>
-        <html lang="de">
-            <head>
-                <title>Installation</title>
-                <style>
-                    body{margin:36px;font-family:sans-serif}
-                    div,fieldset{margin:12px 0}
-                    section div{background-color:#fff;border:0 solid #f00;padding:0 6px;transition:all .2s}
-                    section div:last-child{background-color:#ff8;border-width:1px;padding:12px}
-                    section div.end{border-width:0;padding:0}
-                    section div.error{background-color:#fcc;border-width:0;padding:3px 6px}
-                    section div.success{background-color:#cfc;border-width:0;padding:3px 6px}
-                    table{border-collapse:collapse}
-                    th,td{text-align:left;padding:6px 12px;vertical-align:baseline}
-                    thead+tbody th,thead+tbody td{border-top:1px solid #ccc}
-                </style>
-            </head>
-            <body>%s
-            </body>
-        </html>
-        <script>%s</script>
+            <!DOCTYPE html>
+            <html lang="de">
+                <head>
+                    <title>Installation</title>
+                    <style>
+                        body{margin:36px;font-family:sans-serif}
+                        div,fieldset{margin:12px 0}
+                        section div{background-color:#fff;border:0 solid #f00;padding:0 6px;transition:all .2s}
+                        section div:last-child{background-color:#ff8;border-width:1px;padding:12px}
+                        section div.end{border-width:0;padding:0}
+                        section div.error{background-color:#fcc;border-width:0;padding:3px 6px}
+                        section div.success{background-color:#cfc;border-width:0;padding:3px 6px}
+                        table{border-collapse:collapse}
+                        th,td{text-align:left;padding:6px 12px;vertical-align:baseline}
+                        thead+tbody th,thead+tbody td{border-top:1px solid #ccc}
+                    </style>
+                </head>
+                <body>%s
+                </body>
+            </html>
+            <script>%s</script>
 
-        HTML,
+            HTML,
         $showForm
             ? makeForm($baseUri, $docRoot, $installDir, $path, $host, $schema, $username, $password)
             : <<<HTML
 
-                    <section>
-                        <div></div>
-                    </section>
-            HTML,
+                        <section>
+                            <div></div>
+                        </section>
+                HTML,
         $showForm
             ? "((a,b,c,d,e,f,g,h,i,j,k,l,m,n,o,p,q,r,s,t,u,v,w,x,y,z,_)=>b[c](d,()=>((á,ƀ,ç,đ)=>(é=>{á[c](z,é);é()})(()=>{ç[v]=á[w]?á[w][x](_,'')+'/':'';ƀ[v]=đ[v]=á[w]?a[y](á[w][x](_,''))+'/':'';}))(...[e+f+g+h+i+j,e+k+g+l+i+m,e+n+g+o+i+p,e+q+g+r+i+s][t](é=>b[u](é)))))(window,document,...'addEventListener:DOMContentLoaded:cku3:chddh:000:0p:386:r3190y81:g67ql:8p:s8bc388w:clqhv:1p:31apyrki:cmhqv:2p:ifj66d5r:map:getElementById:innerHTML:value:replace:encodeURI:keyup'.split(':'),/^\/+|\/+$/g)"
             : "const[a,c,i,r,s]=((a,b,c,d,e,f,g,h,i,j,k,l,m,n,o,p,q,r,s,t,u,v)=>((w,x,y)=>((z,á)=>((ƀ,ç)=>[_=>ƀ[c+d](w[e+f](g)),_=>ƀ[ç][h]=[i,j,k][_],_=>ƀ[ç][l]=_,_=>x(()=>y[m]=y[m],_*b),_=>á[n+o]=á[n+p]])(z[q+f+d],r+f+d))(w[s],w[t+f]))(a[t],a[u],a[v]))(window,1e3,...'append:Child:create:Element:div:className:success:error:end:innerHTML:href:scroll:Top:Height:first:last:body:document:setTimeout:location'.split(':'))"
@@ -290,10 +290,10 @@ function run($path, $host, $schema, $username, $password, $baseUri, $docRoot, $i
     if (!is_file($progressFile)) {
         echo makePage($baseUri, $docRoot, $installerDir);
         sendUpdate('i(%s);s()', json_encode('Prüfe Schreibrechte für Aufgabenliste...<br />', JSON_FLAGS));
-        sleep(1);
+        time_nanosleep(0, (int)3e8);
         sendUpdate(
             file_put_contents($progressFile, '') !== false
-                ? 'i("Aufgabenliste angelegt.");c(0);a();i(\'Lade neu...\');s();r(1)'
+                ? 'i("Aufgabenliste angelegt.");c(0);a();i("Lade neu...");s();r(1)'
                 : 'i("Fehler beim Anlegen der Datei %s<br />Bitte Schreibrechte für das Verzeichnis erteilen.");c(1);s()',
             $progressFile
         );
@@ -302,9 +302,9 @@ function run($path, $host, $schema, $username, $password, $baseUri, $docRoot, $i
     } else {
         echo makePage($baseUri, $docRoot, $installerDir);
         if (filesize($progressFile) === 0) {
-            sendUpdate('i(\'Befülle Aufgabenliste...\');s()');
+            sendUpdate('i("Befülle Aufgabenliste...");s()');
             initialiseQueue($progressFile, $baseUri, $docRoot, $installerDir, $path, $host, $schema, $username, $password);
-            sendUpdate('i(\'Aufgabenliste befüllt.\');c(0);a();s()');
+            sendUpdate('i("Aufgabenliste befüllt.");c(0);a();s()');
         }
         while ($thunk = dequeue($progressFile)) {
             $isError = false;
