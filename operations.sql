@@ -1,3 +1,4 @@
+drop table if exists mks_word_index;
 drop table if exists mks_x_collection_song;
 drop table if exists mks_x_composer_song;
 drop table if exists mks_x_cover_artist_song;
