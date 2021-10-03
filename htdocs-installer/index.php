@@ -53,6 +53,103 @@ function applyDbOperations(string $host, string $schema, string $username, strin
     return 'Berichtstabellen vollständig aufgebaut.';
 }
 
+function buildFulltextIndex(string $host, string $schema, string $username, string $password): Generator {
+    [$host, $port] = explode(':', $host . ':3306:', 3);
+    try {
+        $db = new PDO(
+            sprintf('mysql:host=%s;port=%d;dbname=%s;charset=utf8mb4', $host, $port, $schema),
+            $username,
+            $password,
+            [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION, PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_OBJ]
+        );
+    } catch (PDOException $e) {
+        throw new Exception('Fehler beim Verbindungsaufbau, bitte Datenbank-Angaben korrigieren.');
+    }
+    yield 'Erstelle Tabellenstruktur...';
+    $db->exec(
+        <<<SQL
+            create table mks_word_index (
+                word varchar(43) not null,
+                reverse varchar(43) not null,
+                song int unsigned not null,
+                topics set(
+                    'city', 'publisher', 'song-name', 'source', 'genre', 'song-addition', 'song-origin', 'collection',
+                    'performer', 'song-rev', 'song-cpr_remark', 'song-rec_nr', 'song-dedication', 'composer', 'writer',
+                    'cover_artist', 'song-label', 'song-created', 'song-pub_ser', 'song-pub_nr', 'song-cpr_y'
+                    ) not null,
+                index (word),
+                index (reverse),
+                unique (word, song),
+                foreign key (song) references mks_song (id)
+                on update cascade on delete cascade
+            )
+            SQL
+    );
+    $batchSize = 2048;
+    $query = <<<'SQL'
+        select
+            id,
+            Titel `song-name`,
+            concat_ws('\n', `Komponist 1`, `Komponist 2`, `Komponist 3`, `Komponist 4`) composer,
+            concat_ws('\n', `Texter 1`, `Texter 2`, `Texter 3`, `Texter 4`) writer,
+            Copyright `song-cpr_y`,
+            Copyrightvermerk `song-cpr_remark`,
+            Entstehung `song-created`,
+            Graphiker cover_artist,
+            concat_ws('\n', `Interpreten`, `Interpret 2`, `Interpret 3`, `Interpret 4`, `Interpret 5`, `Interpret 6`) performer,
+            Label `song-label`,
+            Verlag publisher,
+            Verlagsort city,
+            Verlagsreihe `song-pub_ser`,
+            Verlagsnummer `song-pub_nr`,
+            `Plattennr.` `song-rec_nr`,
+            Herkunft `song-origin`,
+            Gattung genre,
+            Widmung `song-dedication`,
+            Sammlungen collection,
+            Kritik `song-rev`,
+            Ergänzung `song-addition`,
+            Quelle source
+        from `20201217-oeaw-schlager-db`
+        SQL;
+    $insert = $db->prepare(sprintf(
+        "insert ignore into mks_word_index (word, reverse, song, topics) values %s",
+        implode(',', array_fill(0, $batchSize, '(?, ?, ?, ?)'))
+    ));
+    $records = $db->query($query);
+    $rowCount = $records->rowCount();
+    $numWords = 0;
+    $values = [];
+    foreach ($records as $i => $record) {
+        $map = [];
+        foreach ($record as $field => $value) {
+            if ($field !== 'id' && $value) {
+                foreach (array_filter(preg_split('<[^\\pN\\pL]+>u', $value)) as $word) {
+                    $map[mb_strtolower($word)][$field] = true;
+                }
+            }
+        }
+        foreach ($map as $word => $fields) {
+            $reverse = implode('', array_reverse(preg_split('<>u', strval($word))));
+            $values = array_merge($values, [$word, $reverse, $record->id, implode(',', array_keys($fields))]);
+            $numWords++;
+        }
+        if (count($values) >= 4 * $batchSize) {
+            $insert->execute(array_splice($values, 0, 4 * $batchSize));
+            yield sprintf("Schreibe Volltext-Index... bisher %d Einträge (%.1f%%)\n", $numWords, $i / $rowCount * 100);
+        }
+    }
+    if (count($values)) {
+        $db
+            ->prepare(sprintf(
+                "insert ignore into mks_word_index (word, reverse, song, topics) values %s",
+                implode(',', array_fill(0, count($values) / 4, '(?, ?, ?, ?)'))
+            ))
+            ->execute($values);
+    }
+    return 'Volltext-Index vollständig aufgebaut.';
+}
+
 function importDataDump(string $fileName, string $host, string $schema, string $username, string $password, bool $isFirst = false): Generator
 {
     if ($isFirst) {
@@ -161,6 +258,7 @@ function initialiseQueue(string $progressFile, string $baseUri, string $docRoot,
     enqueue($progressFile, 'importDataDump', 'part-4-of-4.sql', $host, $schema, $username, $password);
     enqueue($progressFile, 'recreateStripPunctuation', $host, $schema, $username, $password);
     enqueue($progressFile, 'applyDbOperations', $host, $schema, $username, $password);
+    enqueue($progressFile, 'buildFulltextIndex', $host, $schema, $username, $password);
     enqueue($progressFile, 'step', 3);
     enqueue($progressFile, 'step', 4);
 }
