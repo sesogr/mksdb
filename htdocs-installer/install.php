@@ -504,6 +504,7 @@ function run($path, $host, $schema, $username, $password, $baseUri, $docRoot, $i
 function sendUpdate(string $commands, ...$args): void
 {
     printf("<script>%s</script>\n", $args ? sprintf($commands, ...$args) : $commands);
+    ob_flush();
     flush();
 }
 //endregion
