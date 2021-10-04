@@ -31,7 +31,7 @@ function applyDbOperations(string $host, string $schema, string $username, strin
         throw new Exception('Fehler beim Verbindungsaufbau, bitte Datenbank-Angaben korrigieren.');
     }
     yield 'Lade operations-compact.sql herunter...';
-    foreach (file('https://raw.githubusercontent.com/sesogr/mksdb/master/operations-compact.sql') as $command) {
+    foreach (file('https://github.com/sesogr/mksdb/raw/master/operations-compact.sql') as $command) {
         [$type, , $name] = explode(' ', $command . '   ', 4);
         if ($type === 'insert') {
             yield sprintf(
@@ -178,7 +178,7 @@ function importDataDump(string $fileName, string $host, string $schema, string $
         && $db->query('select count(*) from `20201217-oeaw-schlager-db`')->fetchColumn() == 14710) {
         return $isFirst ? 'Mastertabelle ist vollständig vorhanden, Import übersprungen.' : null;
     }
-    $baseUri = 'https://raw.githubusercontent.com/sesogr/mksdb/master/csv-import/4-parts/';
+    $baseUri = 'https://github.com/sesogr/mksdb/raw/master/csv-import/4-parts/';
     yield sprintf('Lade %s herunter...', $fileName);
     $commands = explode(";\nINSERT INTO ", file_get_contents($baseUri . $fileName));
     foreach ($commands as $i => $command) {
@@ -190,7 +190,7 @@ function importDataDump(string $fileName, string $host, string $schema, string $
 
 function installApi(string $docRoot, string $path, string $host, string $schema, string $username, string $password): Generator {
     [$host, $port] = explode(':', $host . ':3306:', 3);
-    $baseUri = 'https://raw.githubusercontent.com/sesogr/mksdb/master/web/';
+    $baseUri = 'https://github.com/sesogr/mksdb/raw/master/web/';
     $files = [
         'lib/functions.inc.php',
         'lib/types.inc.php',
