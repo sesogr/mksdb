@@ -12,7 +12,7 @@ run(
     $_POST['cku3dcjh10007p386jefnoz8r'] ?? '',
     sprintf('%s://%s', $_SERVER['REQUEST_SCHEME'], $_SERVER['HTTP_HOST']),
     $_SERVER['DOCUMENT_ROOT'],
-    __DIR__,
+    dirname($_SERVER['SCRIPT_NAME']),
     'queue.txt'
 );
 //region steps
@@ -398,7 +398,7 @@ function makePage(string $baseUri, string $docRoot, string $installDir, string $
 
 function run($path, $host, $schema, $username, $password, $baseUri, $docRoot, $installerDir, $progressFileName): void
 {
-    $progressFile = sprintf("%s/%s", $installerDir, $progressFileName);
+    $progressFile = sprintf("%s/%s/%s", $docRoot, $installerDir, $progressFileName);
     if (!is_file($progressFile)) {
         echo makePage($baseUri, $docRoot, $installerDir);
         sendUpdate('i(%s);s()', json_encode('Prüfe Schreibrechte für Aufgabenliste...<br />', JSON_FLAGS));
