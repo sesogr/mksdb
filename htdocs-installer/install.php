@@ -225,6 +225,37 @@ function installApi(string $docRoot, string $path, string $host, string $schema,
     return 'API-Dateien installiert';
 }
 
+function installApp(string $docRoot, string $path): Generator {
+    $archiveUri = 'https://github.com/sesogr/mksapp/raw/master/build.zip';
+    $targetFile = sprintf("%s/%s/%s", $docRoot, $path, basename($archiveUri));
+    yield 'Lade App-Archiv herunter...';
+    copy($archiveUri, $targetFile);
+    yield sprintf("Entpacke %s", basename($archiveUri));
+    if (extension_loaded('zip')) {
+        $archive = new ZipArchive();
+        if (
+            $archive->open($targetFile, ZipArchive::OVERWRITE) !== true
+            || !$archive->extractTo(dirname($targetFile))
+            || !$archive->close()
+        ) {
+            throw new Exception(sprintf("Fehler beim Entpacken von %s", basename($archiveUri)));
+        }
+        unset($archive);
+    } elseif (function_exists('')) {
+        $output = [];
+        $result = null;
+        if (
+            !exec(sprintf("unzip %s", $targetFile), $output, $result)
+            || $result !== 0
+        ) {
+            throw new Exception(sprintf("Fehler beim Entpacken von %s:<br />%s", basename($archiveUri), implode('<br />', $output)));
+        }
+    }
+    yield 'Lösche Archivdatei';
+    unlink($targetFile);
+    return 'App-Dateien installiert';
+}
+
 function recreateStripPunctuation(string $host, string $schema, string $username, string $password): Generator
 {
     $drop = 'drop function if exists strip_punctuation';
@@ -260,16 +291,6 @@ function recreateStripPunctuation(string $host, string $schema, string $username
         throw new Exception('Fehler beim Verbindungsaufbau, bitte Datenbank-Angaben korrigieren.');
     }
     return 'Hilfsfunktion strip_punctuation installiert.';
-}
-
-function step(int $step): Generator
-{
-    yield sprintf("Starting step %d.", $step);
-    time_nanosleep(1, (int)3e8);
-    yield 'In Progress...';
-    time_nanosleep(1, (int)3e8);
-    if (mt_rand(0, 1)) return sprintf("Finished step %d.", $step);
-    throw new Exception(sprintf("Step %d failed.", $step));
 }
 
 //endregion
@@ -310,7 +331,7 @@ function initialiseQueue(string $progressFile, string $baseUri, string $docRoot,
     enqueue($progressFile, 'applyDbOperations', $host, $schema, $username, $password);
     enqueue($progressFile, 'buildFulltextIndex', $host, $schema, $username, $password);
     enqueue($progressFile, 'installApi', $docRoot, $path, $host, $schema, $username, $password);
-    enqueue($progressFile, 'step', 4);
+    enqueue($progressFile, 'installApp', $docRoot, $path);
 }
 
 function makeForm(string $baseUri, string $docRoot, string $installDir, string $path, string $host, string $schema, string $username, string $password): string
