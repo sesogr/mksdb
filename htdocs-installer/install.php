@@ -200,7 +200,7 @@ function installApi(string $docRoot, string $path, string $host, string $schema,
     ];
     foreach ($files as $fileName) {
         yield sprintf('Lade %s herunter...', $fileName);
-        $targetFile = sprintf("%s/%s/%s", $docRoot, $path, $fileName);
+        $targetFile = sprintf("%s/%s/api/%s", $docRoot, $path, $fileName);
         if (!is_dir(dirname($targetFile))) {
             mkdir(dirname($targetFile), 0777, true);
         }
@@ -208,7 +208,7 @@ function installApi(string $docRoot, string $path, string $host, string $schema,
     }
     yield 'Schreibe Konfiguration...';
     file_put_contents(
-        sprintf("%s/%s/config.inc.php", $docRoot, $path),
+        sprintf("%s/%s/api/config.inc.php", $docRoot, $path),
         str_replace(
             [
                 'ckuc5lb9n000fp386qpeklpft',
