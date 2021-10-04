@@ -15,8 +15,9 @@ run(
     __DIR__,
     'queue.txt'
 );
-//
-function applyDbOperations(string $host, string $schema, string $username, string $password): Generator {
+//region steps
+function applyDbOperations(string $host, string $schema, string $username, string $password): Generator
+{
     $last = null;
     [$host, $port] = explode(':', $host . ':3306:', 3);
     try {
@@ -31,7 +32,7 @@ function applyDbOperations(string $host, string $schema, string $username, strin
     }
     yield 'Lade operations-compact.sql herunter...';
     foreach (file('https://raw.githubusercontent.com/sesogr/mksdb/master/operations-compact.sql') as $command) {
-        [$type,, $name] = explode(' ', $command . '   ', 4);
+        [$type, , $name] = explode(' ', $command . '   ', 4);
         if ($type === 'insert') {
             yield sprintf(
                 'Erstelle Einträge für %s... %s',
@@ -40,9 +41,15 @@ function applyDbOperations(string $host, string $schema, string $username, strin
             );
         } elseif ($type !== $last) {
             switch ($type) {
-                case 'drop': yield 'Entferne alte Tabellen...'; break;
-                case 'create': yield 'Erstelle Tabellen...'; break;
-                case 'alter': yield 'Optimiere Tabellen...'; break;
+                case 'drop':
+                    yield 'Entferne alte Tabellen...';
+                    break;
+                case 'create':
+                    yield 'Erstelle Tabellen...';
+                    break;
+                case 'alter':
+                    yield 'Optimiere Tabellen...';
+                    break;
             }
         }
         $last = $type;
@@ -53,7 +60,8 @@ function applyDbOperations(string $host, string $schema, string $username, strin
     return 'Berichtstabellen vollständig aufgebaut.';
 }
 
-function buildFulltextIndex(string $host, string $schema, string $username, string $password): Generator {
+function buildFulltextIndex(string $host, string $schema, string $username, string $password): Generator
+{
     [$host, $port] = explode(':', $host . ':3306:', 3);
     try {
         $db = new PDO(
@@ -180,7 +188,8 @@ function importDataDump(string $fileName, string $host, string $schema, string $
     return sprintf('Datenpaket %s importiert.', $fileName);
 }
 
-function recreateStripPunctuation(string $host, string $schema, string $username, string $password): Generator {
+function recreateStripPunctuation(string $host, string $schema, string $username, string $password): Generator
+{
     $drop = 'drop function if exists strip_punctuation';
     $create = <<<'SQL'
         create function strip_punctuation(input text) returns text deterministic
@@ -225,8 +234,11 @@ function step(int $step): Generator
     if (mt_rand(0, 1)) return sprintf("Finished step %d.", $step);
     throw new Exception(sprintf("Step %d failed.", $step));
 }
-//
-function dequeue(string $queuePath): ?Closure {
+
+//endregion
+//region utils
+function dequeue(string $queuePath): ?Closure
+{
     $lines = file($queuePath);
     if (empty($lines)) {
         return null;
@@ -242,7 +254,8 @@ function dequeue(string $queuePath): ?Closure {
     };
 }
 
-function enqueue(string $queuePath, callable $function, ...$args): bool {
+function enqueue(string $queuePath, callable $function, ...$args): bool
+{
     return (bool)file_put_contents(
         $queuePath,
         sprintf("%s:%s\n", $function, base64_encode(gzcompress(json_encode($args, JSON_FLAGS)))),
@@ -430,7 +443,9 @@ function run($path, $host, $schema, $username, $password, $baseUri, $docRoot, $i
     }
 }
 
-function sendUpdate(string $commands, ...$args): void {
+function sendUpdate(string $commands, ...$args): void
+{
     printf("<script>%s</script>\n", $args ? sprintf($commands, ...$args) : $commands);
     flush();
 }
+//endregion
