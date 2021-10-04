@@ -6,17 +6,7 @@ require_once __DIR__ . '/../web/lib/functions.inc.php';
 require_once __DIR__ . '/../web/lib/types.inc.php';
 
 $config = include __DIR__ . '/../web/config.inc.php';
-$db = new PDO(
-    sprintf(
-        "mysql:host=%s;port=%d;dbname=%s;charset=%s",
-        $config['address'],
-        $config['port'],
-        $config['database'],
-        'utf8mb4'
-    ),
-    $config['username'],
-    $config['password']
-);
+$db = new PDO('mysql:host=localhost;port=11006;dbname=schlager;charset=utf8mb4', 'schlager', 'zorofzoftumev');
 
 // for search v2
 //TODO this is red, but the function works; both results of the query have both words somewhere in their data; please review the behaviour of the search (maybe some fields have to be excluded)
