@@ -5,7 +5,7 @@ set_error_handler(function (int $code, string $message, ?string $file, ?int $lin
 });
 const JSON_FLAGS = JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES;
 run(
-    $_POST['cku3chddh0000p386r3190y81'] ?? '',
+    trim($_POST['cku3chddh0000p386r3190y81'] ?? '', '/'),
     $_POST['cku3d53lb0003p386qbirzhvq'] ?? 'localhost',
     $_POST['cku3dbtrq0004p386ct13vmhx'] ?? '',
     $_POST['cku3dcdu50006p38620xa9iqe'] ?? '',
@@ -188,6 +188,43 @@ function importDataDump(string $fileName, string $host, string $schema, string $
     return sprintf('Datenpaket %s importiert.', $fileName);
 }
 
+function installApi(string $docRoot, string $path, string $host, string $schema, string $username, string $password): Generator {
+    [$host, $port] = explode(':', $host . ':3306:', 3);
+    $baseUri = 'https://raw.githubusercontent.com/sesogr/mksdb/master/web/';
+    $files = [
+        'lib/functions.inc.php',
+        'lib/types.inc.php',
+        'lib/utils.inc.php',
+        '.htaccess',
+        'index.php',
+    ];
+    foreach ($files as $fileName) {
+        yield sprintf('Lade %s herunter...', $fileName);
+        $targetFile = sprintf("%s/%s/%s", $docRoot, $path, $fileName);
+        if (!is_dir(dirname($targetFile))) {
+            mkdir(dirname($targetFile), 0777, true);
+        }
+        copy(sprintf("%s%s", $baseUri, $fileName), $targetFile);
+    }
+    yield 'Schreibe Konfiguration...';
+    file_put_contents(
+        sprintf("%s/%s/config.inc.php", $docRoot, $path),
+        str_replace(
+            [
+                'ckuc5lb9n000fp386qpeklpft',
+                '3306',
+                'ckuc5lezg000gp386q6hexfoe',
+                'ckuc5lhp9000hp3863bw5x2p5',
+                'ckuc5lkoe000ip3868obtf185',
+                'ckuc5lndh000jp386qpffulqo',
+            ],
+            [$host, $port, $username, $password, $schema, rtrim('/' . $path, '/')],
+            file_get_contents($baseUri . 'config.inc.php')
+        )
+    );
+    return 'API-Dateien installiert';
+}
+
 function recreateStripPunctuation(string $host, string $schema, string $username, string $password): Generator
 {
     $drop = 'drop function if exists strip_punctuation';
@@ -272,7 +309,7 @@ function initialiseQueue(string $progressFile, string $baseUri, string $docRoot,
     enqueue($progressFile, 'recreateStripPunctuation', $host, $schema, $username, $password);
     enqueue($progressFile, 'applyDbOperations', $host, $schema, $username, $password);
     enqueue($progressFile, 'buildFulltextIndex', $host, $schema, $username, $password);
-    enqueue($progressFile, 'step', 3);
+    enqueue($progressFile, 'installApi', $docRoot, $path, $host, $schema, $username, $password);
     enqueue($progressFile, 'step', 4);
 }
 
