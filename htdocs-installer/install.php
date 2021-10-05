@@ -227,33 +227,36 @@ function installApi(string $docRoot, string $path, string $host, string $schema,
 }
 
 function installApp(string $docRoot, string $path): Generator {
-    $archiveUri = 'https://github.com/sesogr/mksapp/raw/master/build.zip';
-    $targetFile = sprintf("%s/%s/%s", $docRoot, $path, basename($archiveUri));
-    yield 'Lade App-Archiv herunter...';
-    copy($archiveUri, $targetFile);
-    yield sprintf("Entpacke %s", basename($archiveUri));
-    if (extension_loaded('zip')) {
-        $archive = new ZipArchive();
-        if (
-            $archive->open($targetFile, ZipArchive::OVERWRITE) !== true
-            || !$archive->extractTo(dirname($targetFile))
-            || !$archive->close()
-        ) {
-            throw new Exception(sprintf("Fehler beim Entpacken von %s", basename($archiveUri)));
+    $reader = new SplFileObject(__FILE__);
+    $reader->fseek(__COMPILER_HALT_OFFSET__ + 1);
+    $files = [];
+    while ($line = trim($reader->fgets())) {
+        [$file, $length] = explode(':', $line);
+        $files[$file] = (int)$length;
+    }
+    yield print_r($files, true); sleep(2);
+    foreach ($files as $file => $length) {
+        $buffer = '';
+        while ($length) {
+            $chunk = $reader->fread($length);
+            $buffer .= $chunk;
+            $length -= strlen($chunk);
         }
-        unset($archive);
-    } elseif (function_exists('')) {
-        $output = [];
-        $result = null;
-        if (
-            !exec(sprintf("unzip %s", $targetFile), $output, $result)
-            || $result !== 0
-        ) {
-            throw new Exception(sprintf("Fehler beim Entpacken von %s:<br />%s", basename($archiveUri), implode('<br />', $output)));
+        $reader->fgetc();
+        yield sprintf("Entpacke %s", $file);
+        $targetFile = sprintf("%s/%s/%s", $docRoot, $path, $file);
+        if(!is_dir(dirname($targetFile))) {
+            mkdir(dirname($targetFile), 0777, true);
+        }
+        $size = file_put_contents(
+            $targetFile,
+            gzuncompress(base64_decode($buffer))
+        );
+        if ($size === false) {
+            throw new Exception(sprintf('Fehler beim Speichern von %s', $file));
         }
     }
-    yield 'Lösche Archivdatei';
-    unlink($targetFile);
+    unset($reader);
     return 'App-Dateien installiert';
 }
 
@@ -511,3 +514,5 @@ function sendUpdate(string $commands, ...$args): void
     flush();
 }
 //endregion
+__halt_compiler();
+
