@@ -74,6 +74,7 @@ function buildFulltextIndex(string $host, string $schema, string $username, stri
         throw new Exception('Fehler beim Verbindungsaufbau, bitte Datenbank-Angaben korrigieren.');
     }
     yield 'Erstelle Tabellenstruktur...';
+    $db->exec('drop table if exists mks_word_index');
     $db->exec(
         <<<SQL
             create table mks_word_index (
@@ -174,10 +175,10 @@ function importDataDump(string $fileName, string $host, string $schema, string $
     } catch (PDOException $e) {
         throw new Exception('Fehler beim Verbindungsaufbau, bitte Datenbank-Angaben korrigieren.');
     }
-    if ($db->query("show tables like '20201217-oeaw-schlager-db'")->rowCount() === 1
-        && $db->query('select count(*) from `20201217-oeaw-schlager-db`')->fetchColumn() == 14710) {
-        return $isFirst ? 'Mastertabelle ist vollständig vorhanden, Import übersprungen.' : null;
-    }
+    // if ($db->query("show tables like '20201217-oeaw-schlager-db'")->rowCount() === 1
+    //     && $db->query('select count(*) from `20201217-oeaw-schlager-db`')->fetchColumn() == 14710) {
+    //     return $isFirst ? 'Mastertabelle ist vollständig vorhanden, Import übersprungen.' : null;
+    // }
     $baseUri = 'https://github.com/sesogr/mksdb/raw/master/csv-import/4-parts/';
     yield sprintf('Lade %s herunter...', $fileName);
     $commands = explode(";\nINSERT INTO ", file_get_contents($baseUri . $fileName));
@@ -503,8 +504,10 @@ function run($path, $host, $schema, $username, $password, $baseUri, $docRoot, $i
 
 function sendUpdate(string $commands, ...$args): void
 {
-    printf("<script>%s</script>\n", $args ? sprintf($commands, ...$args) : $commands);
-    ob_flush();
+    printf("%-8192s\n", sprintf("<script>%s</script>", $args ? sprintf($commands, ...$args) : $commands));
+    while (ob_get_level()) {
+        ob_end_flush();
+    }
     flush();
 }
 //endregion
