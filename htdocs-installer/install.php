@@ -92,7 +92,7 @@ function buildFulltextIndex(string $host, string $schema, string $username, stri
                 unique (word, song),
                 foreign key (song) references mks_song (id)
                 on update cascade on delete cascade
-            )
+            ) default charset=utf8mb4 collate=utf8mb4_unicode_ci
             SQL
     );
     $batchSize = 2048;

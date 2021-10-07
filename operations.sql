@@ -20,23 +20,23 @@ drop table if exists mks_source;
 create table if not exists mks_city (
     id int unsigned not null primary key auto_increment,
     name text
-);
+) default charset=utf8mb4 collate=utf8mb4_unicode_ci;
 create table if not exists mks_collection (
     id int unsigned not null primary key auto_increment,
     name text
-);
+) default charset=utf8mb4 collate=utf8mb4_unicode_ci;
 create table if not exists mks_genre (
     id int unsigned not null primary key auto_increment,
     name text
-);
+) default charset=utf8mb4 collate=utf8mb4_unicode_ci;
 create table if not exists mks_person (
     id int unsigned not null primary key auto_increment,
     name text
-);
+) default charset=utf8mb4 collate=utf8mb4_unicode_ci;
 create table if not exists mks_publisher (
     id int unsigned not null primary key auto_increment,
     name text
-);
+) default charset=utf8mb4 collate=utf8mb4_unicode_ci;
 create table if not exists mks_song (
     id int unsigned not null primary key auto_increment,
     name text,
@@ -52,11 +52,11 @@ create table if not exists mks_song (
     review text,
     addition text,
     index_no text
-);
+) default charset=utf8mb4 collate=utf8mb4_unicode_ci;
 create table if not exists mks_source (
     id int unsigned not null primary key auto_increment,
     name text
-);
+) default charset=utf8mb4 collate=utf8mb4_unicode_ci;
 
 create table if not exists mks_x_collection_song (
     song_id int unsigned not null,
@@ -67,7 +67,7 @@ create table if not exists mks_x_collection_song (
     index(collection_id),
     foreign key (song_id) references mks_song (id),
     foreign key (collection_id) references mks_collection (id)
-);
+) default charset=utf8mb4 collate=utf8mb4_unicode_ci;
 create table if not exists mks_x_composer_song (
     song_id int unsigned not null,
     composer_id int unsigned not null,
@@ -77,7 +77,7 @@ create table if not exists mks_x_composer_song (
     index(composer_id),
     foreign key (song_id) references mks_song (id),
     foreign key (composer_id) references mks_person (id)
-);
+) default charset=utf8mb4 collate=utf8mb4_unicode_ci;
 create table if not exists mks_x_cover_artist_song (
     song_id int unsigned not null,
     cover_artist_id int unsigned not null,
@@ -87,7 +87,7 @@ create table if not exists mks_x_cover_artist_song (
     index(cover_artist_id),
     foreign key (song_id) references mks_song (id),
     foreign key (cover_artist_id) references mks_person (id)
-);
+) default charset=utf8mb4 collate=utf8mb4_unicode_ci;
 create table if not exists mks_x_genre_song (
     song_id int unsigned not null,
     genre_id int unsigned not null,
@@ -97,7 +97,7 @@ create table if not exists mks_x_genre_song (
     index(genre_id),
     foreign key (song_id) references mks_song (id),
     foreign key (genre_id) references mks_genre (id)
-);
+) default charset=utf8mb4 collate=utf8mb4_unicode_ci;
 create table if not exists mks_x_performer_song (
     song_id int unsigned not null,
     performer_id int unsigned not null,
@@ -107,7 +107,7 @@ create table if not exists mks_x_performer_song (
     index(performer_id),
     foreign key (song_id) references mks_song (id),
     foreign key (performer_id) references mks_person (id)
-);
+) default charset=utf8mb4 collate=utf8mb4_unicode_ci;
 create table if not exists mks_x_publication_place_song (
     song_id int unsigned not null,
     publication_place_id int unsigned not null,
@@ -117,7 +117,7 @@ create table if not exists mks_x_publication_place_song (
     index(publication_place_id),
     foreign key (song_id) references mks_song (id),
     foreign key (publication_place_id) references mks_city (id)
-);
+) default charset=utf8mb4 collate=utf8mb4_unicode_ci;
 create table if not exists mks_x_publisher_song (
     song_id int unsigned not null,
     publisher_id int unsigned not null,
@@ -127,7 +127,7 @@ create table if not exists mks_x_publisher_song (
     index(publisher_id),
     foreign key (song_id) references mks_song (id),
     foreign key (publisher_id) references mks_publisher (id)
-);
+) default charset=utf8mb4 collate=utf8mb4_unicode_ci;
 create table if not exists mks_x_source_song (
     song_id int unsigned not null,
     source_id int unsigned not null,
@@ -137,7 +137,7 @@ create table if not exists mks_x_source_song (
     index(source_id),
     foreign key (song_id) references mks_song (id),
     foreign key (source_id) references mks_source (id)
-);
+) default charset=utf8mb4 collate=utf8mb4_unicode_ci;
 create table if not exists mks_x_writer_song (
     song_id int unsigned not null,
     writer_id int unsigned not null,
@@ -147,7 +147,7 @@ create table if not exists mks_x_writer_song (
     index(writer_id),
     foreign key (song_id) references mks_song (id),
     foreign key (writer_id) references mks_person (id)
-);
+) default charset=utf8mb4 collate=utf8mb4_unicode_ci;
 
 insert into mks_city (name)
     select distinct
@@ -428,25 +428,25 @@ insert into mks_x_writer_song (song_id, writer_id, position, annotation)
         ) c
     order by song_id, position;
 
--- select max(length(name)) from mks_city;             -- 50
--- select max(length(name)) from mks_collection;       -- 350
--- select max(length(name)) from mks_genre;            -- 93
--- select max(length(name)) from mks_person;           -- 326
--- select max(length(name)) from mks_publisher;        -- 184
--- select max(length(name)) from mks_song;             -- 129
--- select max(length(copyright_year)) from mks_song;   -- 6
--- select max(length(copyright_remark)) from mks_song; -- 147
--- select max(length(created_on)) from mks_song;       -- 22
--- select max(length(label)) from mks_song;            -- 537
--- select max(length(publisher_series)) from mks_song; -- 108
--- select max(length(publisher_number)) from mks_song; -- 15
--- select max(length(record_number)) from mks_song;    -- 47
--- select max(length(origin)) from mks_song;           -- 449
--- select max(length(dedication)) from mks_song;       -- 240
--- select max(length(review)) from mks_song;           -- 4581
--- select max(length(addition)) from mks_song;         -- 4501
--- select max(length(index_no)) from mks_song;         -- 5
--- select max(length(name)) from mks_source;           -- 501
+select max(length(name)) from mks_city;             -- 50
+select max(length(name)) from mks_collection;       -- 350
+select max(length(name)) from mks_genre;            -- 93
+select max(length(name)) from mks_person;           -- 326
+select max(length(name)) from mks_publisher;        -- 184
+select max(length(name)) from mks_song;             -- 129
+select max(length(copyright_year)) from mks_song;   -- 6
+select max(length(copyright_remark)) from mks_song; -- 147
+select max(length(created_on)) from mks_song;       -- 22
+select max(length(label)) from mks_song;            -- 537
+select max(length(publisher_series)) from mks_song; -- 108
+select max(length(publisher_number)) from mks_song; -- 15
+select max(length(record_number)) from mks_song;    -- 47
+select max(length(origin)) from mks_song;           -- 449
+select max(length(dedication)) from mks_song;       -- 240
+select max(length(review)) from mks_song;           -- 4581
+select max(length(addition)) from mks_song;         -- 4501
+select max(length(index_no)) from mks_song;         -- 5
+select max(length(name)) from mks_source;           -- 501
 
 alter table mks_city modify column name varchar(50) default null;
 alter table mks_collection modify column name varchar(350) default null;
