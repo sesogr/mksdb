@@ -47,3 +47,19 @@ it('can iterate over multiple iterators strictly in order',
             (fn() => yield from [1, 3, 13])(),
         ])) == [1, 2, 3, 5, 8, 13, 21, 34]
 );
+it('can find results for title => \'blume\'', function () use($db){
+    foreach(gatherSearchResultsV3($db, ['song-name' => 'blume', 'composer' => '"Kunz Hans"']) as $res)
+        if(mb_stripos($res->title, 'blume', 0, 'UTF-8') === false)
+            return false;
+    return true;
+});
+it('returns exactly one result for title => \'blume\', copyrightYear => \'1931\'', function () use($db){
+    foreach(gatherSearchResultsV3($db, ['song-name' => 'blume', 'song-cpr_y' => '1931']) as $res)
+        if(mb_stripos($res->title, 'blume', 0, 'UTF-8') === false
+            and stripos($res->copyright_year, '1931') === false)
+            return false;
+    return true;
+});
+it('can find results for title => \'blume\', composer => \'"Kunz Hans"\'', function () use($db){
+    return count(gatherSearchResultsV3($db, ['song-name' => 'blume', 'composer' => '"Kunz Hans"'])) === 1;
+});
