@@ -51,3 +51,9 @@ Generated root password is ```6f5df6289dee033bf2b8205e5ce4eb5d7cb3b5d0d5da67ac96
    - search: /search?q=&lt;query&gt;&engine=&lt;engine (optional)&gt; <br/>
       engine: v2 -> current default, uses index; 
       v1 -> old version of search, uses SQL query with IN(...), can still be used if wildcards are needed
+
+# Production Server
+
+PHP/7.4.21 on Apache/2.4.46 behind nginx/1.20.1
+[Production Server](https://www.demos.ac.at/schlager/)
+
