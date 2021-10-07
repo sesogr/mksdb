@@ -29,3 +29,11 @@ function hasAtLeastSoManyResultsWhichAllMatchCallbackV1(PDO $db, string $search,
     );
     return $stats['total'] >= $minResults && $stats['match'] === $stats['total'];
 }
+
+function hasSameElements(iterable $actual, iterable $expected): bool {
+    $a = array_unique($actual instanceof Traversable ? iterator_to_array($actual) : $actual);
+    $b = array_unique($expected instanceof Traversable ? iterator_to_array($expected) : $expected);
+    sort($a);
+    sort($b);
+    return $a == $b;
+}
