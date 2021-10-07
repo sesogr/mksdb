@@ -1,6 +1,33 @@
 <?php declare(strict_types=1);
 
 /**
+ * @property-read string $id
+ * @property-read string $song-name
+ * @property-read string $composer
+ * @property-read string $writer
+ * @property-read string $song-cpr_y
+ * @property-read string $song-cpr_remark
+ * @property-read string $song-created
+ * @property-read string $cover_artist
+ * @property-read string $performer
+ * @property-read string $song-label
+ * @property-read string $publisher
+ * @property-read string $city
+ * @property-read string $song-pub_ser
+ * @property-read string $song-pub_nr
+ * @property-read string $song-rec_nr
+ * @property-read string $song-origin
+ * @property-read string $genre
+ * @property-read string $song-dedication
+ * @property-read string $collection
+ * @property-read string $song-rev
+ * @property-read string $song-addition
+ * @property-read string $source
+ */
+class CsvTableSong {
+}
+
+/**
  * @property-read string $name
  */
 class NamedItem {
