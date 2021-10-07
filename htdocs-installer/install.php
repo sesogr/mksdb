@@ -196,7 +196,6 @@ function installApi(string $docRoot, string $path, string $host, string $schema,
     $files = [
         'lib/functions.inc.php',
         'lib/types.inc.php',
-        'lib/utils.inc.php',
         '.htaccess',
         'index.php',
     ];

@@ -10,11 +10,8 @@ it('can split a non-phrase search string into positive and excluded keywords', f
     return splitKeywords('abc -def mno') == [['abc', 'mno'], ['def']];
 });
 it('can parse a search string without ranges', function () {
-    return parseSearch('abc -def -" ghi jkl" mno "pqr "') == [['abc', 'mno'], ['pqr'], [], ['def'], ['ghi jkl'], []];
+    return parseSearchV3('abc -def -" ghi jkl" mno "pqr "') == [['abc', 'mno'], ['pqr'], ['def'], ['ghi jkl']];
 });
 it('can parse a simple phrase', function () {
-    return parseSearch('"am Himmel"') == [[], ['am Himmel'], [], [], [], []];
-});
-it('converts user wildcards (*) to SQL LIKE wildcards (%)', function () {
-    return parseSearch('frühling -wien* -"100%"') == [['frühling'], [], [], ['wien%'], ['100%%'], []];
+    return parseSearchV3('"am Himmel"') == [[], ['am Himmel'], [], []];
 });

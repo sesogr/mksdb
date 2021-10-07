@@ -63,3 +63,39 @@ it('returns exactly one result for title => \'blume\', copyrightYear => \'1931\'
 it('can find results for title => \'blume\', composer => \'"Kunz Hans"\'', function () use($db){
     return count(gatherSearchResultsV3($db, ['song-name' => 'blume', 'composer' => '"Kunz Hans"'])) === 1;
 });
+it('yields one single result for \'Wolfgangsee Rößl\' (KSD-T-6)', function () use ($db) {
+    return count(gatherSearchResultsV3($db, ['' => 'Wolfgangsee Rößl'])) === 1;
+});
+it('can search for origin \'Himmelstür\' (KSD-T-1)', function () use ($db) {
+    return hasAtLeastSoManyResultsWhichAllMatchCallback($db, 'Himmelstür', 1, function ($r) {
+        return mb_stripos($r->origin, 'HIMMELSTÜR') !== false;
+    });
+});
+it('can search for origin \'Viktoria\' (KSD-T-1)', function () use ($db) {
+    return hasAtLeastSoManyResultsWhichAllMatchCallback($db, 'Viktoria', 1, function ($r) {
+        return mb_stripos($r->origin, 'VIKTORIA') !== false;
+    });
+});
+it('ignores letter-case for keywords like \'vIkToRiA\' (KSD-T-3)', function () use ($db) {
+    return hasAtLeastSoManyResultsWhichAllMatchCallback($db, 'vIkToRiA', 1, function ($r) {
+        return mb_strpos($r->origin, 'Viktoria') !== false;
+    });
+});
+it('ignores letter-case for phrases like "NoCh EiNmAl DiE hÄnDe" (KSD-T-3)', function () use ($db) {
+    return hasAtLeastSoManyResultsWhichAllMatchCallback($db, '"NoCh EiNmAl DiE hÄnDe"', 1, function ($r) {
+        return mb_strpos($r->title, 'Hände') !== false;
+    });
+});
+it('can search for origin \'Himmelstür\' without \'Kinostar\' (KSD-T-1)', function () use ($db) {
+    return hasAtLeastSoManyResultsWhichAllMatchCallback($db, 'Himmelstür -Kinostar', 1,
+        function ($r) {
+            return mb_stripos($r->origin, 'HIMMELSTÜR') !== false && $r->title !== 'Kinostar';
+        });
+});
+it('can search for origin \'Himmelstür\' without "Odeon 0-4756" (KSD-T-1)', function () use ($db) {
+    return hasAtLeastSoManyResultsWhichAllMatchCallback($db, 'Himmelstür -"Odeon 0-4756', 1,
+        function ($r) {
+            return mb_stripos($r->origin, 'HIMMELSTÜR') !== false && $r->title !== 'Kinostar';
+        });
+});
+//TODO add test for wildcards
