@@ -1,5 +1,6 @@
 <?php declare(strict_types=1);
 set_time_limit(0);
+ignore_user_abort(true);
 set_error_handler(function (int $code, string $message, ?string $file, ?int $line, ?array $context = []) {
     sendUpdate('i(%s);c(1);a();s()', json_encode($message, JSON_FLAGS));
 });
