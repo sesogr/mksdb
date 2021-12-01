@@ -48,23 +48,23 @@ it('can iterate over multiple iterators strictly in order',
         ])) == [1, 2, 3, 5, 8, 13, 21, 34]
 );
 it('can find results for title => \'blume\'', function () use($db){
-    foreach(gatherSearchResultsV3($db, ['song-name' => 'blume', 'composer' => '"Kunz Hans"']) as $res)
+    foreach(gatherSearchResultsV3($db, ['song-name' => 'blume', 'composer' => '"Kunz Hans"'], true) as $res)
         if(mb_stripos($res->title, 'blume', 0, 'UTF-8') === false)
             return false;
     return true;
 });
 it('returns exactly one result for title => \'blume\', copyrightYear => \'1931\'', function () use($db){
-    foreach(gatherSearchResultsV3($db, ['song-name' => 'blume', 'song-cpr_y' => '1931']) as $res)
+    foreach(gatherSearchResultsV3($db, ['song-name' => 'blume', 'song-cpr_y' => '1931'], true) as $res)
         if(mb_stripos($res->title, 'blume', 0, 'UTF-8') === false
             and stripos($res->copyright_year, '1931') === false)
             return false;
     return true;
 });
 it('can find results for title => \'blume\', composer => \'"Kunz Hans"\'', function () use($db){
-    return count(gatherSearchResultsV3($db, ['song-name' => 'blume', 'composer' => '"Kunz Hans"'])) === 1;
+    return count(gatherSearchResultsV3($db, ['song-name' => 'blume', 'composer' => '"Kunz Hans"'], true)) === 1;
 });
 it('yields one single result for \'Wolfgangsee Rößl\' (KSD-T-6)', function () use ($db) {
-    return count(gatherSearchResultsV3($db, ['' => 'Wolfgangsee Rößl'])) === 1;
+    return count(gatherSearchResultsV3($db, ['' => 'Wolfgangsee Rößl'], true)) === 1;
 });
 it('can search for origin \'Himmelstür\' (KSD-T-1)', function () use ($db) {
     return hasAtLeastSoManyResultsWhichAllMatchCallback($db, 'Himmelstür', 1, function ($r) {

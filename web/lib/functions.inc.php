@@ -63,11 +63,12 @@ function filterAndScoreSongs(iterable $songs, array $filters): Generator
 /**
  * @param PDO $db
  * @param array $fields [topic:string => search:string]
+ * @param bool $expandToOr
  *
  * @return array|SearchResult[]
  * @throws PDOException
  */
-function gatherSearchResultsV3(PDO $db, array $fields): array
+function gatherSearchResultsV3(PDO $db, array $fields, bool $expandToOr): array
 {
     $iterators = [];
     $filters = [];
