@@ -31,30 +31,35 @@ function addTablePrefixToRecordsPath(string $path)
  *
  * @return Generator|array [:CsvTableSong, score:int]
  */
-function filterAndScoreSongs(iterable $songs, array $filters): Generator
+function filterAndScoreSongs(iterable $songs, array $filters, bool $expandToOr): Generator
 {
     foreach ($songs as $song) {
-        $score = 0;
-        foreach ($filters as $topic1 => [$keywords, $phrases, $excludedKeywords, $excludedPhrases]) {
-            if ($topic1) {
-                if (matchValue($song->$topic1, array_merge($excludedKeywords, $excludedPhrases))) {
-                    $score = 0;
-                    break;
-                } elseif (matchValue($song->$topic1, array_merge($keywords, $phrases))) {
-                    $score++;
-                }
-            } else {
-                foreach ($song as $topic2 => $value) {
-                    if (matchValue($song->$topic2, array_merge($excludedKeywords, $excludedPhrases))) {
-                        $score = 0;
+        $scores = [];
+        $excludeSong = false;
+        foreach ($filters as $topic => [, , $excludedKeywords, $excludedPhrases]) {
+            foreach (array_merge($excludedKeywords, $excludedPhrases) as $ignored) {
+                foreach ($topic ? [$topic => $song->$topic] : $song as $field => $value) {
+                    if (matchValue($song->$field, $ignored)) {
+                        $excludeSong = true;
                         break;
-                    } elseif (matchValue($song->$topic2, array_merge($keywords, $phrases))) {
-                        $score++;
+                    }
+                }
+                if ($excludeSong) break;
+            }
+            if ($excludeSong) break;
+        }
+        if (!$excludeSong) {
+            foreach ($filters as $topic => [$keywords, $phrases]) {
+                foreach (array_merge($keywords, $phrases) as $phrase) {
+                    $scores[$topic . ':' . $phrase] = 0;
+                    foreach ($topic ? [$topic => $song->$topic] : $song as $field => $value) {
+                        $scores[$topic . ':' . $phrase] += matchValue($song->$field, $phrase) ? 1 : 0;
                     }
                 }
             }
         }
-        if ($score) {
+        $score = $expandToOr ? array_sum($scores) : array_product($scores);
+        if ($score > 0) {
             yield [$song, $score];
         }
     }
@@ -85,7 +90,8 @@ function gatherSearchResultsV3(PDO $db, array $fields, bool $expandToOr): array
     $scoredSongs = iterator_to_array(
         filterAndScoreSongs(
             mapSongIdsToSongs(mergeAndSortIterators($iterators), $db, 256),
-            $filters
+            $filters,
+            $expandToOr
         )
     );
     usort($scoredSongs, fn(array $a, array $b) => $b[1] - $a[1]); // descending
@@ -144,7 +150,7 @@ function handleCustomResponse(string $operation, string $tableName, ResponseInte
                 'song-origin' => $environment->search['origin'] ?? null,
                 'performer' => $environment->search['performer'] ?? null,
             ];
-        $searchResults = gatherSearchResultsV3($db, $fields);
+        $searchResults = gatherSearchResultsV3($db, $fields, ($environment->search['expandToOr'] ?? '0') === '1');
         $content = json_encode(
             ['records' => $searchResults],
             JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE
@@ -268,21 +274,19 @@ function mapSongIdsToSongs(iterable $songIds, PDO $db, int $clusterSize = 256): 
     }
 }
 
-function matchValue(?string $subject, array $searchPhrases): bool
+function matchValue(?string $subject, string $searchPhrase): bool
 {
     if ($subject) {
-        foreach ($searchPhrases as $phrase) {
-            $pattern = sprintf(
-                '<%s>u',
-                str_replace(
-                    '*',
-                    '[\\pN\\pL]+',
-                    str_replace(' * ', ' [\\pN\\pL ]+ ', stripPunctuationAndPad($phrase, true))
-                )
-            );
-            if (preg_match($pattern, stripPunctuationAndPad($subject))) {
-                return true;
-            }
+        $pattern = sprintf(
+            '<%s>u',
+            str_replace(
+                '*',
+                '[\\pN\\pL]+',
+                str_replace(' * ', ' [\\pN\\pL ]+ ', stripPunctuationAndPad($searchPhrase, true))
+            )
+        );
+        if (preg_match($pattern, stripPunctuationAndPad($subject))) {
+            return true;
         }
     }
     return false;
