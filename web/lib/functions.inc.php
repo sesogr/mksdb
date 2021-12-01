@@ -33,29 +33,28 @@ function addTablePrefixToRecordsPath(string $path)
  */
 function filterAndScoreSongs(iterable $songs, array $filters): Generator
 {
-    $epsilon = 1e-5;
     foreach ($songs as $song) {
-        $score = 1;
+        $score = 0;
         foreach ($filters as $topic1 => [$keywords, $phrases, $excludedKeywords, $excludedPhrases]) {
             if ($topic1) {
-                if (matchValue($song->$topic1, array_merge($excludedKeywords, $excludedPhrases)) > $epsilon) {
+                if (matchValue($song->$topic1, array_merge($excludedKeywords, $excludedPhrases))) {
                     $score = 0;
                     break;
-                } else {
-                    $score *= matchValue($song->$topic1, array_merge($keywords, $phrases));
+                } elseif (matchValue($song->$topic1, array_merge($keywords, $phrases))) {
+                    $score++;
                 }
             } else {
                 foreach ($song as $topic2 => $value) {
-                    if (matchValue($song->$topic2, array_merge($excludedKeywords, $excludedPhrases)) > $epsilon) {
+                    if (matchValue($song->$topic2, array_merge($excludedKeywords, $excludedPhrases))) {
                         $score = 0;
                         break;
-                    } else {
-                        $score *= matchValue($song->$topic2, array_merge($keywords, $phrases));
+                    } elseif (matchValue($song->$topic2, array_merge($keywords, $phrases))) {
+                        $score++;
                     }
                 }
             }
         }
-        if ($score > $epsilon) {
+        if ($score) {
             yield [$song, $score];
         }
     }
@@ -83,18 +82,13 @@ function gatherSearchResultsV3(PDO $db, array $fields, bool $expandToOr): array
             );
         }
     }
-    // file_put_contents(__FILE__.'.log', json_encode($filters));
     $scoredSongs = iterator_to_array(
         filterAndScoreSongs(
             mapSongIdsToSongs(mergeAndSortIterators($iterators), $db, 256),
             $filters
         )
     );
-    if ($expandToOr) {
-        usort($scoredSongs, fn(array $a, array $b) => $b[1] - $a[1]); // descending
-    } else {
-        $scoredSongs = array_filter($scoredSongs, fn(array $songAndScore) => $songAndScore[1] > 1 - 1e-5);
-    }
+    usort($scoredSongs, fn(array $a, array $b) => $b[1] - $a[1]); // descending
     return array_map(
         fn(array $songAndScore) => (object)[
             'id' => intval($songAndScore[0]->id),
@@ -150,7 +144,7 @@ function handleCustomResponse(string $operation, string $tableName, ResponseInte
                 'song-origin' => $environment->search['origin'] ?? null,
                 'performer' => $environment->search['performer'] ?? null,
             ];
-        $searchResults = gatherSearchResultsV3($db, $fields, ($environment->search['expandToOr'] ?? '0') === '1');
+        $searchResults = gatherSearchResultsV3($db, $fields);
         $content = json_encode(
             ['records' => $searchResults],
             JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE
@@ -274,11 +268,9 @@ function mapSongIdsToSongs(iterable $songIds, PDO $db, int $clusterSize = 256): 
     }
 }
 
-function matchValue(?string $subject, array $searchPhrases): float
+function matchValue(?string $subject, array $searchPhrases): bool
 {
-    $score = 0;
     if ($subject) {
-        $normalized = stripPunctuationAndPad($subject);
         foreach ($searchPhrases as $phrase) {
             $pattern = sprintf(
                 '<%s>u',
@@ -288,12 +280,12 @@ function matchValue(?string $subject, array $searchPhrases): float
                     str_replace(' * ', ' [\\pN\\pL ]+ ', stripPunctuationAndPad($phrase, true))
                 )
             );
-            if (preg_match($pattern, $normalized)) {
-                $score++;
+            if (preg_match($pattern, stripPunctuationAndPad($subject))) {
+                return true;
             }
         }
     }
-    return $searchPhrases ? $score / count($searchPhrases) : 0;
+    return false;
 }
 
 function mbReverse(string $input): string
