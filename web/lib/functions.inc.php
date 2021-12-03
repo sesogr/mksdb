@@ -58,7 +58,7 @@ function filterAndScoreSongs(iterable $songs, array $filters, bool $expandToOr):
                 }
             }
         }
-        $score = $expandToOr ? array_sum($scores) : array_product($scores);
+        $score = $expandToOr ? array_sum($scores) : array_product($scores ?: [0]);
         if ($score > 0) {
             yield [$song, $score];
         }
