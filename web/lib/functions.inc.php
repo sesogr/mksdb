@@ -103,6 +103,7 @@ function gatherSearchResultsV3(PDO $db, array $fields, bool $expandToOr): array
             'writer' => $songAndScore[0]->writer,
             'copyright_year' => $songAndScore[0]->{'song-cpr_y'},
             'origin' => $songAndScore[0]->{'song-origin'},
+            'score' => $songAndScore[1],
         ],
         $scoredSongs
     );

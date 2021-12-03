@@ -111,57 +111,7 @@ class SourceRef extends RecordRef {
  * @property-read string|null $writer
  * @property-read string|null $copyright_year
  * @property-read string|null $origin
+ * @property-read float|null $score
  */
 class SearchResult {
-}
-
-class SearchResultScore {
-
-    public const KEYWORD_MULTIPLIER = 1;
-    public const PHRASE_MULTIPLIER = 100;
-    public const FULL_MATCH_MULTIPLIER = 10;
-    public const EXCLUDED = -9999;
-    public const INVALID = -1;
-
-    public $keywordMatchCount;
-    public $phraseMatchCount;
-    public $fullKeywordsMatchCount;
-    public $fullPhrasesMatchCount;
-
-    public static function newEmpty(): SearchResultScore {
-        $ret = new SearchResultScore();
-        $ret->keywordMatchCount = self::INVALID;// at least this has to be set explicitly
-        $ret->phraseMatchCount = 0;
-        $ret->fullKeywordsMatchCount = 0;
-        $ret->fullPhrasesMatchCount = 0;
-        return $ret;
-    }
-
-    public static function newExcluded(): SearchResultScore {
-        $ret = self::newEmpty();
-        $ret->keywordMatchCount = self::EXCLUDED;
-        $ret->phraseMatchCount = self::EXCLUDED;
-        return $ret;
-    }
-
-    public function totalScore(): int {
-        if($this->keywordMatchCount == self::INVALID
-            or $this->phraseMatchCount == self::INVALID
-            or $this->fullKeywordsMatchCount == self::INVALID)
-            return self::INVALID;
-        if($this->keywordMatchCount == self::EXCLUDED
-            or $this->phraseMatchCount == self::EXCLUDED
-            or $this->fullKeywordsMatchCount == self::EXCLUDED)
-            return self::EXCLUDED;
-
-        $score = 0;
-        $score += $this->fullKeywordsMatchCount > 0
-            ? $this->fullKeywordsMatchCount * self::KEYWORD_MULTIPLIER * self::FULL_MATCH_MULTIPLIER
-            : $this->keywordMatchCount * self::KEYWORD_MULTIPLIER;
-        $score += $this->fullPhrasesMatchCount > 0
-            ? $this->fullPhrasesMatchCount * self::PHRASE_MULTIPLIER * self::FULL_MATCH_MULTIPLIER
-            : $this->phraseMatchCount * self::PHRASE_MULTIPLIER;
-        return $score;
-    }
-
 }
