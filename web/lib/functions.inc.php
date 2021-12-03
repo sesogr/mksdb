@@ -60,7 +60,7 @@ function filterAndScoreSongs(iterable $songs, array $filters, bool $expandToOr):
         }
         $score = $expandToOr ? array_sum($scores) : array_product($scores ?: [0]);
         if ($score > 0) {
-            yield [$song, $score];
+            yield [$song, array_sum($scores) / count($scores)];
         }
     }
 }
@@ -94,7 +94,7 @@ function gatherSearchResultsV3(PDO $db, array $fields, bool $expandToOr): array
             $expandToOr
         )
     );
-    usort($scoredSongs, fn(array $a, array $b) => $b[1] - $a[1]); // descending
+    usort($scoredSongs, fn(array $a, array $b) => $b[1] < $a[1] ? -1 : ($b[1] > $a[1] ? 1 : 0)); // descending
     return array_map(
         fn(array $songAndScore) => (object)[
             'id' => intval($songAndScore[0]->id),
